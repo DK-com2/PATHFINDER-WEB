@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pathfinder - Timeline データアップロード</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .step-number {
+            @apply w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold;
+        }
+        
+        .step-line {
+            @apply w-0.5 h-8 bg-blue-200 ml-4;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Toast Container -->
+    <div id="toast-container" class="fixed top-4 right-4 z-50"></div>
+    
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-40 hidden">
+        <div class="bg-white rounded-lg p-6 flex items-center space-x-3">
+            <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+            <span>処理中...</span>
+        </div>
+    </div>
+
+    <div class="min-h-screen">
+        <!-- ヘッダー -->
+        <nav class="bg-white shadow-lg">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between h-16">
+                    <div class="flex items-center">
+                        <h1 class="text-xl font-semibold text-gray-900">
+                            🌐 Pathfinder Web
+                        </h1>
+                        <span class="ml-4 text-gray-500">Timeline データアップロード</span>
+                    </div>
+                    
+                    <div class="flex items-center space-x-4">
+                        <a href="/" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                            ← ダッシュボードに戻る
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </nav>
+        
+        <!-- メインコンテンツ -->
+        <main class="max-w-6xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+            <div class="fade-in">
+                <!-- Google Timeline について -->
+                <div class="bg-white overflow-hidden shadow rounded-lg mb-8">
+                    <div class="px-6 py-8">
+                        <div class="text-center mb-8">
+                            <h2 class="text-3xl font-bold text-gray-900 mb-4">
+                                📍 Google Timeline データをインポート
+                            </h2>
+                            <p class="text-lg text-gray-600">
+                                あなたの位置履歴データを地図上で美しく可視化しましょう
+                            </p>
+                        </div>
+                        
+                        <!-- Google Timeline とは -->
+                        <div class="mb-8">
+                            <h3 class="text-xl font-semibold text-gray-900 mb-4">📱 Google Timeline とは？</h3>
+                            <div class="bg-blue-50 rounded-lg p-6">
+                                <p class="text-gray-700 mb-4">
+                                    Google Timeline（タイムライン）は、Googleが提供する位置履歴サービスです。
+                                    スマートフォンの位置情報を記録し、あなたがいつどこに行ったかを自動的に追跡します。
+                                </p>
+                                <div class="grid md:grid-cols-2 gap-4">
+                                    <div class="bg-white rounded-lg p-4">
+                                        <h4 class="font-semibold text-green-700 mb-2">✅ できること</h4>
+                                        <ul class="text-sm text-gray-600 space-y-1">
+                                            <li>• 訪問した場所の記録</li>
+                                            <li>• 移動手段の自動判定</li>
+                                            <li>• 移動時間・距離の計測</li>
+                                            <li>• 写真との位置情報連携</li>
+                                        </ul>
+                                    </div>
+                                    <div class="bg-white rounded-lg p-4">
+                                        <h4 class="font-semibold text-blue-700 mb-2">🎯 活用例</h4>
+                                        <ul class="text-sm text-gray-600 space-y-1">
+                                            <li>• 旅行の記録と振り返り</li>
+                                            <li>• 日々の行動パターン分析</li>
+                                            <li>• 運動ルートの可視化</li>
+                                            <li>• 生活圏の把握</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- アップロードセクション -->
+                <div class="bg-white overflow-hidden shadow rounded-lg mb-8">
+                    <div class="px-6 py-8">
+                        <h3 class="text-2xl font-semibold text-gray-900 mb-6">📤 ファイルアップロード</h3>
+                        
+                        <div class="space-y-6">
+                            <!-- データ削除セクション -->
+                            <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+                                <div class="flex items-start justify-between">
+                                    <div>
+                                        <h4 class="text-sm font-semibold text-red-800 mb-1">🗑️ 既存データの削除</h4>
+                                        <p class="text-xs text-red-700 mb-3">
+                                            新しいタイムラインデータをアップロードする前に、既存のデータを削除することを推奨します。
+                                        </p>
+                                    </div>
+                                    <button id="clear-data-btn"
+                                        class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-xs font-medium 
+                                               transition-colors whitespace-nowrap">
+                                        🗑️ データ削除
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- ファイルアップロード -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-3">
+                                    Google Timeline JSONファイルを選択してください
+                                </label>
+                                <div class="flex items-center space-x-4">
+                                    <input type="file" id="timeline-file" accept=".json" 
+                                        class="block w-full text-sm text-gray-500 
+                                               file:mr-4 file:py-3 file:px-4 
+                                               file:rounded-lg file:border-0 
+                                               file:text-sm file:font-medium 
+                                               file:bg-blue-50 file:text-blue-700 
+                                               hover:file:bg-blue-100
+                                               border border-gray-300 rounded-lg
+                                               focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                    <button id="upload-btn" disabled
+                                        class="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 
+                                               text-white px-6 py-3 rounded-lg text-sm font-medium 
+                                               transition-colors min-w-[120px]">
+                                        📤 アップロード
+                                    </button>
+                                </div>
+                                <div class="mt-3 flex items-center space-x-4 text-xs text-gray-500">
+                                    <span>📁 対応形式: JSON</span>
+                                    <span>📊 最大サイズ: 100MB</span>
+                                    <span>🔒 データは安全に処理されます</span>
+                                </div>
+                            </div>
+                            
+                            <!-- プログレスバー -->
+                            <div id="upload-progress" class="hidden">
+                                <div class="bg-gray-200 rounded-full h-3">
+                                    <div id="progress-bar" class="bg-blue-600 h-3 rounded-full transition-all duration-300" style="width: 0%"></div>
+                                </div>
+                                <p id="progress-text" class="text-sm text-gray-600 mt-2 text-center">アップロード中...</p>
+                            </div>
+                            
+                            <!-- 結果表示 -->
+                            <div id="upload-result" class="hidden">
+                                <!-- 結果がここに表示されます -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- エクスポート手順 -->
+                <div class="bg-white overflow-hidden shadow rounded-lg mb-8">
+                    <div class="px-6 py-8">
+                        <h3 class="text-2xl font-semibold text-gray-900 mb-6">📥 データのエクスポート手順</h3>
+                        
+                        <!-- 重要な注意事項 -->
+                        <div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+                            <div class="flex items-start">
+                                <div class="flex-shrink-0">
+                                    <svg class="h-5 w-5 text-red-400 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                                    </svg>
+                                </div>
+                                <div class="ml-3">
+                                    <h4 class="text-sm font-medium text-red-800">⚠️ 重要な変更点</h4>
+                                    <p class="text-sm text-red-700 mt-1">
+                                        Googleマップのタイムライン機能が変更されました。ウェブ版での表示・エクスポートが制限され、主にモバイルアプリからのエクスポートが推奨されています。
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 方法選択 -->
+                        <div class="grid md:grid-cols-2 gap-6 mb-8">
+                            <div class="bg-blue-50 rounded-lg p-6 border border-blue-200">
+                                <h4 class="text-lg font-semibold text-blue-900 mb-2">📱 方法1: Googleマップアプリ（推奨）</h4>
+                                <p class="text-sm text-blue-700 mb-3">スマートフォンから直接エクスポート</p>
+                                <div class="flex items-center justify-between">
+                                    <span class="text-xs bg-blue-200 text-blue-800 px-2 py-1 rounded">最新・推奨</span>
+                                    <span class="text-xs text-blue-600">iOS・Android対応</span>
+                                </div>
+                            </div>
+                            <div class="bg-gray-50 rounded-lg p-6 border border-gray-200">
+                                <h4 class="text-lg font-semibold text-gray-900 mb-2">🌐 方法2: Google Takeout</h4>
+                                <p class="text-sm text-gray-700 mb-3">ブラウザから包括的なデータ取得</p>
+                                <div class="flex items-center justify-between">
+                                    <span class="text-xs bg-gray-200 text-gray-800 px-2 py-1 rounded">従来の方法</span>
+                                    <span class="text-xs text-gray-600">PC・モバイル対応</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 方法1: Googleマップアプリ -->
+                        <div class="mb-8">
+                            <h4 class="text-xl font-semibold text-blue-900 mb-6">📱 方法1: Googleマップアプリからエクスポート（推奨）</h4>
+                            
+                            <!-- iOS手順 -->
+                            <div class="mb-6">
+                                <h5 class="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                                    <span class="bg-gray-100 text-gray-800 px-3 py-1 rounded-full text-sm mr-3">iOS</span>
+                                    iPhone・iPad での手順
+                                </h5>
+                                <div class="space-y-3 ml-4">
+                                    <div class="flex items-start space-x-3">
+                                        <div class="flex-shrink-0 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold">1</div>
+                                        <p class="text-gray-700">Googleマップアプリを開き、右上の<strong>アカウントアイコン</strong>をタップ</p>
+                                    </div>
+                                    <div class="flex items-start space-x-3">
+                                        <div class="flex-shrink-0 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold">2</div>
+                                        <p class="text-gray-700"><strong>「タイムライン」</strong>を選択</p>
+                                    </div>
+                                    <div class="flex items-start space-x-3">
+                                        <div class="flex-shrink-0 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold">3</div>
+                                        <p class="text-gray-700">画面右上の<strong>「⋯」（三点リーダー）</strong>をタップ</p>
+                                    </div>
+                                    <div class="flex items-start space-x-3">
+                                        <div class="flex-shrink-0 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold">4</div>
+                                        <p class="text-gray-700"><strong>「設定とプライバシー」</strong>を選択</p>
+                                    </div>
+                                    <div class="flex items-start space-x-3">
+                                        <div class="flex-shrink-0 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold">5</div>
+                                        <p class="text-gray-700">下にスクロールし、<strong>「タイムラインデータをエクスポート」</strong>をタップ</p>
+                                    </div>
+                                    <div class="flex items-start space-x-3">
+                                        <div class="flex-shrink-0 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold">6</div>
+                                        <p class="text-gray-700">iPhone上の保存場所を指定して、<strong>JSON形式</strong>のファイルをダウンロード</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Android手順 -->
+                            <div class="mb-6">
+                                <h5 class="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                                    <span class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm mr-3">Android</span>
+                                    Android での手順
+                                </h5>
+                                <div class="space-y-3 ml-4">
+                                    <div class="flex items-start space-x-3">
+                                        <div class="flex-shrink-0 w-6 h-6 bg-green-600 text-white rounded-full flex items-center justify-center text-xs font-bold">1</div>
+                                        <p class="text-gray-700">端末の<strong>「設定」</strong>アプリを開く</p>
+                                    </div>
+                                    <div class="flex items-start space-x-3">
+                                        <div class="flex-shrink-0 w-6 h-6 bg-green-600 text-white rounded-full flex items-center justify-center text-xs font-bold">2</div>
+                                        <p class="text-gray-700"><strong>「位置情報」</strong>または<strong>「位置情報サービス」</strong>をタップ</p>
+                                    </div>
+                                    <div class="flex items-start space-x-3">
+                                        <div class="flex-shrink-0 w-6 h-6 bg-green-600 text-white rounded-full flex items-center justify-center text-xs font-bold">3</div>
+                                        <p class="text-gray-700"><strong>「タイムライン」</strong>を選択</p>
+                                    </div>
+                                    <div class="flex items-start space-x-3">
+                                        <div class="flex-shrink-0 w-6 h-6 bg-green-600 text-white rounded-full flex items-center justify-center text-xs font-bold">4</div>
+                                        <p class="text-gray-700"><strong>「タイムラインのエクスポート」</strong>を選択</p>
+                                    </div>
+                                    <div class="flex items-start space-x-3">
+                                        <div class="flex-shrink-0 w-6 h-6 bg-green-600 text-white rounded-full flex items-center justify-center text-xs font-bold">5</div>
+                                        <p class="text-gray-700">保存場所を指定して、<strong>JSON形式</strong>のファイルを保存</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 方法2: Google Takeout -->
+                        <div class="mb-6">
+                            <h4 class="text-xl font-semibold text-gray-900 mb-6">🌐 方法2: Google Takeout を利用する</h4>
+                            <div class="bg-gray-50 rounded-lg p-4 mb-4">
+                                <p class="text-sm text-gray-700">
+                                    <strong>Google Takeout</strong> は、Googleアカウントのデータをまとめてエクスポートするための公式サービスです。
+                                </p>
+                            </div>
+                            
+                            <div class="space-y-4">
+                                <div class="flex items-start space-x-3">
+                                    <div class="flex-shrink-0 w-6 h-6 bg-gray-600 text-white rounded-full flex items-center justify-center text-xs font-bold">1</div>
+                                    <div>
+                                        <p class="text-gray-700 mb-2">
+                                            <a href="https://takeout.google.com" target="_blank" class="text-blue-600 hover:text-blue-800 underline font-medium">
+                                                Google データ エクスポート
+                                            </a> にアクセスして、Googleアカウントにログイン
+                                        </p>
+                                    </div>
+                                </div>
+                                <div class="flex items-start space-x-3">
+                                    <div class="flex-shrink-0 w-6 h-6 bg-gray-600 text-white rounded-full flex items-center justify-center text-xs font-bold">2</div>
+                                    <p class="text-gray-700">エクスポートするサービスの一覧から<strong>「ロケーション履歴（タイムライン）」</strong>を探してチェック</p>
+                                </div>
+                                <div class="flex items-start space-x-3">
+                                    <div class="flex-shrink-0 w-6 h-6 bg-gray-600 text-white rounded-full flex items-center justify-center text-xs font-bold">3</div>
+                                    <p class="text-gray-700"><strong>「次のステップ」</strong>をクリック</p>
+                                </div>
+                                <div class="flex items-start space-x-3">
+                                    <div class="flex-shrink-0 w-6 h-6 bg-gray-600 text-white rounded-full flex items-center justify-center text-xs font-bold">4</div>
+                                    <div>
+                                        <p class="text-gray-700 mb-2">配信方法とファイル形式を設定：</p>
+                                        <ul class="list-disc list-inside text-gray-600 text-sm space-y-1 ml-4">
+                                            <li><strong>ファイル形式：</strong> JSON</li>
+                                            <li><strong>圧縮形式：</strong> .zip</li>
+                                            <li><strong>配信方法：</strong> メールでリンクを送信 または Google ドライブに追加</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                <div class="flex items-start space-x-3">
+                                    <div class="flex-shrink-0 w-6 h-6 bg-gray-600 text-white rounded-full flex items-center justify-center text-xs font-bold">5</div>
+                                    <p class="text-gray-700"><strong>「エクスポートを作成」</strong>をクリックして完了</p>
+                                </div>
+                                <div class="flex items-start space-x-3">
+                                    <div class="flex-shrink-0 w-6 h-6 bg-gray-600 text-white rounded-full flex items-center justify-center text-xs font-bold">6</div>
+                                    <p class="text-gray-700">数分〜数時間後にダウンロードリンクが届くので、ZIPファイルをダウンロードして展開</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ファイル名の例 -->
+                        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                            <h5 class="font-medium text-blue-900 mb-2">📂 エクスポートされるファイル名の例</h5>
+                            <div class="text-sm text-blue-800 space-y-1">
+                                <p>• <code>Records.json</code> (英語版)</p>
+                                <p>• <code>タイムライン.json</code> (日本語版)</p>
+                                <p>• <code>Location History.json</code></p>
+                                <p>• <code>Semantic Location History.json</code></p>
+                            </div>
+                            <p class="text-xs text-blue-600 mt-3">
+                                💡 いずれのファイルも JSON 形式で、このアプリで直接アップロード可能です
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- サポート情報 -->
+                <div class="bg-white overflow-hidden shadow rounded-lg">
+                    <div class="px-6 py-8">
+                        <h3 class="text-xl font-semibold text-gray-900 mb-4">💡 よくある質問</h3>
+                        
+                        <div class="space-y-4">
+                            <div class="border-l-4 border-blue-500 pl-4">
+                                <h4 class="font-medium text-gray-900">Q: どんなデータが抽出されますか？</h4>
+                                <p class="text-sm text-gray-600 mt-1">
+                                    訪問した場所、移動ルート、滞在時間、移動手段（徒歩・車・電車など）の情報が抽出され、地図上で可視化されます。
+                                </p>
+                            </div>
+                            
+                            <div class="border-l-4 border-green-500 pl-4">
+                                <h4 class="font-medium text-gray-900">Q: データのプライバシーは大丈夫？</h4>
+                                <p class="text-sm text-gray-600 mt-1">
+                                    アップロードされたデータはあなたのアカウントにのみ関連付けられ、他のユーザーからは見えません。
+                                </p>
+                            </div>
+                            
+                            <div class="border-l-4 border-yellow-500 pl-4">
+                                <h4 class="font-medium text-gray-900">Q: ファイルが大きすぎる場合は？</h4>
+                                <p class="text-sm text-gray-600 mt-1">
+                                    100MBを超える場合は、Google Takeoutで期間を限定してエクスポートするか、複数回に分けてアップロードしてください。
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        class TimelineUploader {
+            constructor() {
+                this.token = localStorage.getItem('token');
+                
+                if (!this.token) {
+                    alert('ログインが必要です');
+                    window.location.href = '/';
+                    return;
+                }
+                
+                this.setupEventListeners();
+            }
+            
+            setupEventListeners() {
+                const fileInput = document.getElementById('timeline-file');
+                const uploadBtn = document.getElementById('upload-btn');
+                const clearDataBtn = document.getElementById('clear-data-btn');
+                
+                fileInput.addEventListener('change', this.handleFileSelect.bind(this));
+                uploadBtn.addEventListener('click', this.handleFileUpload.bind(this));
+                clearDataBtn.addEventListener('click', this.handleClearData.bind(this));
+            }
+            
+            showToast(message, type = 'info') {
+                const toast = document.createElement('div');
+                const bgColor = type === 'error' ? 'bg-red-500' : type === 'success' ? 'bg-green-500' : 'bg-blue-500';
+                
+                toast.className = `${bgColor} text-white px-6 py-3 rounded-lg shadow-lg mb-3 fade-in`;
+                toast.textContent = message;
+                
+                document.getElementById('toast-container').appendChild(toast);
+                
+                setTimeout(() => {
+                    toast.remove();
+                }, 5000);
+            }
+            
+            handleFileSelect(event) {
+                const file = event.target.files[0];
+                const uploadBtn = document.getElementById('upload-btn');
+                const uploadResult = document.getElementById('upload-result');
+                
+                uploadResult.classList.add('hidden');
+                
+                if (file) {
+                    const maxSize = 100 * 1024 * 1024;
+                    if (file.size > maxSize) {
+                        this.showToast(`ファイルサイズが大きすぎます: ${(file.size / 1024 / 1024).toFixed(1)}MB > 100MB`, 'error');
+                        uploadBtn.disabled = true;
+                        return;
+                    }
+                    
+                    if (!file.name.toLowerCase().endsWith('.json')) {
+                        this.showToast('JSONファイルを選択してください', 'error');
+                        uploadBtn.disabled = true;
+                        return;
+                    }
+                    
+                    uploadBtn.disabled = false;
+                } else {
+                    uploadBtn.disabled = true;
+                }
+            }
+            
+            async handleFileUpload() {
+                const fileInput = document.getElementById('timeline-file');
+                const file = fileInput.files[0];
+                
+                if (!file) {
+                    this.showToast('ファイルを選択してください', 'error');
+                    return;
+                }
+                
+                const uploadProgress = document.getElementById('upload-progress');
+                const progressBar = document.getElementById('progress-bar');
+                const progressText = document.getElementById('progress-text');
+                const uploadResult = document.getElementById('upload-result');
+                const uploadBtn = document.getElementById('upload-btn');
+                
+                try {
+                    uploadBtn.disabled = true;
+                    uploadProgress.classList.remove('hidden');
+                    uploadResult.classList.add('hidden');
+                    progressBar.style.width = '0%';
+                    progressText.textContent = 'アップロード中...';
+                    
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 1800000);
+                    
+                    const response = await fetch('/api/timeline/upload', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${this.token}`
+                        },
+                        body: formData,
+                        signal: controller.signal
+                    });
+                    
+                    clearTimeout(timeoutId);
+                    
+                    progressBar.style.width = '100%';
+                    progressText.textContent = '処理中...';
+                    
+                    if (file.size > 10 * 1024 * 1024) {
+                        setTimeout(() => {
+                            if (progressText.textContent === '処理中...') {
+                                progressText.textContent = '大量データを処理中です。お待ちください...';
+                            }
+                        }, 5000);
+                    }
+                    
+                    const result = await response.json();
+                    
+                    if (response.ok) {
+                        this.displayUploadSuccess(result);
+                        this.showToast('アップロードが完了しました', 'success');
+                    } else {
+                        this.displayUploadError(result);
+                        this.showToast(`アップロードに失敗しました: ${result.detail}`, 'error');
+                    }
+                    
+                } catch (error) {
+                    this.displayUploadError({ detail: error.message });
+                    this.showToast(`アップロードエラー: ${error.message}`, 'error');
+                } finally {
+                    uploadProgress.classList.add('hidden');
+                    uploadBtn.disabled = false;
+                    fileInput.value = '';
+                }
+            }
+            
+            displayUploadSuccess(result) {
+                const uploadResult = document.getElementById('upload-result');
+                
+                uploadResult.innerHTML = `
+                    <div class="bg-green-50 border border-green-200 rounded-lg p-6">
+                        <div class="flex items-start">
+                            <div class="flex-shrink-0">
+                                <svg class="h-8 w-8 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                            </div>
+                            <div class="ml-4">
+                                <h3 class="text-lg font-medium text-green-800">
+                                    ✅ アップロード成功
+                                </h3>
+                                <div class="mt-3 text-sm text-green-700 space-y-1">
+                                    <p><strong>ファイル名:</strong> ${result.filename}</p>
+                                    <p><strong>処理レコード数:</strong> ${result.total_records.toLocaleString()}</p>
+                                    <p><strong>保存レコード数:</strong> ${result.saved_records.toLocaleString()}</p>
+                                    ${result.validation_summary && result.validation_summary.warning_count > 0 ? 
+                                        `<p class="text-yellow-600"><strong>警告:</strong> ${result.validation_summary.warning_count}件</p>` : ''
+                                    }
+                                </div>
+                                <div class="mt-4">
+                                    <a href="/static/map.html" 
+                                        class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm font-medium inline-block">
+                                        🗺️ 地図で確認する
+                                    </a>
+                                    <a href="/" 
+                                        class="ml-3 bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md text-sm font-medium inline-block">
+                                        📊 ダッシュボードへ戻る
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                uploadResult.classList.remove('hidden');
+            }
+            
+            displayUploadError(result) {
+                const uploadResult = document.getElementById('upload-result');
+                
+                uploadResult.innerHTML = `
+                    <div class="bg-red-50 border border-red-200 rounded-lg p-6">
+                        <div class="flex items-start">
+                            <div class="flex-shrink-0">
+                                <svg class="h-8 w-8 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                            </div>
+                            <div class="ml-4">
+                                <h3 class="text-lg font-medium text-red-800">
+                                    ❌ アップロード失敗
+                                </h3>
+                                <div class="mt-3 text-sm text-red-700">
+                                    <p>${result.detail || 'アップロード処理中にエラーが発生しました'}</p>
+                                    ${result.validation_summary && result.validation_summary.errors ? 
+                                        `<div class="mt-3">
+                                            <p><strong>検証エラー:</strong></p>
+                                            <ul class="list-disc list-inside ml-3 space-y-1">
+                                                ${result.validation_summary.errors.map(error => `<li>${error}</li>`).join('')}
+                                            </ul>
+                                        </div>` : ''
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                uploadResult.classList.remove('hidden');
+            }
+            
+            async handleClearData() {
+                // 確認ダイアログ
+                const confirmed = confirm(
+                    '⚠️ 警告\n\nすべてのタイムラインデータが削除されます。\nこの操作は取り消すことができません。\n\n本当に削除しますか？'
+                );
+                
+                if (!confirmed) {
+                    return;
+                }
+                
+                const clearDataBtn = document.getElementById('clear-data-btn');
+                const uploadResult = document.getElementById('upload-result');
+                
+                try {
+                    clearDataBtn.disabled = true;
+                    clearDataBtn.textContent = '🔄 削除中...';
+                    uploadResult.classList.add('hidden');
+                    
+                    const response = await fetch('/api/timeline/clear-data', {
+                        method: 'DELETE',
+                        headers: {
+                            'Authorization': `Bearer ${this.token}`
+                        }
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (response.ok) {
+                        this.displayClearSuccess(result);
+                        this.showToast(`${result.deleted_records.toLocaleString()}件のデータを削除しました`, 'success');
+                    } else {
+                        this.displayClearError(result);
+                        this.showToast(`削除に失敗しました: ${result.detail}`, 'error');
+                    }
+                    
+                } catch (error) {
+                    this.displayClearError({ detail: error.message });
+                    this.showToast(`削除エラー: ${error.message}`, 'error');
+                } finally {
+                    clearDataBtn.disabled = false;
+                    clearDataBtn.textContent = '🗑️ データ削除';
+                }
+            }
+            
+            displayClearSuccess(result) {
+                const uploadResult = document.getElementById('upload-result');
+                
+                uploadResult.innerHTML = `
+                    <div class="bg-green-50 border border-green-200 rounded-lg p-6">
+                        <div class="flex items-start">
+                            <div class="flex-shrink-0">
+                                <svg class="h-8 w-8 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                            </div>
+                            <div class="ml-4">
+                                <h3 class="text-lg font-medium text-green-800">
+                                    ✅ データ削除完了
+                                </h3>
+                                <div class="mt-3 text-sm text-green-700 space-y-1">
+                                    <p><strong>ユーザー名:</strong> ${result.username}</p>
+                                    <p><strong>削除レコード数:</strong> ${result.deleted_records.toLocaleString()}</p>
+                                </div>
+                                <div class="mt-4">
+                                    <p class="text-sm text-green-600">
+                                        🎉 すべてのタイムラインデータが削除されました。新しいデータをアップロードできます。
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                uploadResult.classList.remove('hidden');
+            }
+            
+            displayClearError(result) {
+                const uploadResult = document.getElementById('upload-result');
+                
+                uploadResult.innerHTML = `
+                    <div class="bg-red-50 border border-red-200 rounded-lg p-6">
+                        <div class="flex items-start">
+                            <div class="flex-shrink-0">
+                                <svg class="h-8 w-8 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                            </div>
+                            <div class="ml-4">
+                                <h3 class="text-lg font-medium text-red-800">
+                                    ❌ データ削除失敗
+                                </h3>
+                                <div class="mt-3 text-sm text-red-700">
+                                    <p>${result.detail || 'データ削除処理中にエラーが発生しました'}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                uploadResult.classList.remove('hidden');
+            }
+        }
+
+        // アプリケーション起動
+        document.addEventListener('DOMContentLoaded', () => {
+            new TimelineUploader();
+        });
+    </script>
+</body>
+</html>

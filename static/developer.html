@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pathfinder - データベースエクスポート</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <style>
+        .fade-in {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .spinner {
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #3498db;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 2s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="min-h-screen flex items-center justify-center">
+        <!-- パスワード入力画面 -->
+        <div id="password-screen" class="max-w-md w-full p-8 bg-white rounded-xl shadow-lg fade-in">
+            <div class="text-center mb-6">
+                <h2 class="text-2xl font-bold text-gray-900">📁 データベースエクスポート</h2>
+                <p class="mt-2 text-sm text-gray-600">
+                    アクセスにはパスワードが必要です
+                </p>
+            </div>
+            
+            <form id="password-form" class="space-y-4">
+                <div>
+                    <label for="password" class="block text-sm font-medium text-gray-700">
+                        パスワード
+                    </label>
+                    <input id="password" type="password" required
+                        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="パスワードを入力">
+                </div>
+                
+                <button type="submit" 
+                    class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md font-medium transition-colors">
+                    アクセス
+                </button>
+            </form>
+            
+            <div id="password-error" class="mt-4 hidden">
+                <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+                    パスワードが正しくありません
+                </div>
+            </div>
+            
+            <div class="mt-6 text-center">
+                <a href="/" class="text-sm text-gray-500 hover:text-gray-700">
+                    ← ダッシュボードに戻る
+                </a>
+            </div>
+        </div>
+        
+        <!-- エクスポートツール画面 -->
+        <div id="export-tools" class="max-w-4xl w-full p-8 bg-white rounded-xl shadow-lg fade-in hidden">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-gray-900">📁 データベースエクスポート</h2>
+                <button id="logout-btn" 
+                    class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md text-sm font-medium">
+                    ログアウト
+                </button>
+            </div>
+            
+            <!-- データベース統計 -->
+            <div class="bg-gray-50 p-6 rounded-lg mb-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-semibold text-gray-900">📊 データベース統計</h3>
+                    <button id="refresh-stats" 
+                        class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded text-sm font-medium">
+                        🔄 更新
+                    </button>
+                </div>
+                <div id="database-stats" class="text-gray-600">
+                    読み込み中...
+                </div>
+            </div>
+            
+            <!-- 全データエクスポート -->
+            <div class="bg-blue-50 p-6 rounded-lg mb-6">
+                <h3 class="text-lg font-semibold text-blue-900 mb-4">📥 全データエクスポート</h3>
+                <p class="text-blue-700 text-sm mb-4">
+                    データベース内の全ユーザーのデータをGeoJSON形式でダウンロードします。
+                </p>
+                
+                <!-- 間引き設定 -->
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-blue-800 mb-2">データ間引き率</label>
+                    <select id="thin-rate" class="w-full p-2 border rounded text-sm">
+                        <option value="1.0">間引きなし（100%）</option>
+                        <option value="0.5">50%に間引き</option>
+                        <option value="0.3" selected>30%に間引き（推奨）</option>
+                        <option value="0.2">20%に間引き</option>
+                        <option value="0.1">10%に間引き</option>
+                    </select>
+                    <p class="text-xs text-blue-600 mt-1">
+                        timelinePathデータのみを間引きます。visit/activitySegmentは間引かれません
+                    </p>
+                </div>
+                
+                <!-- 期間選択 -->
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-blue-800 mb-2">期間選択（任意）</label>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-xs text-blue-700 mb-1">開始日</label>
+                            <input type="date" id="start-date" class="w-full p-2 border rounded text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-blue-700 mb-1">終了日</label>
+                            <input type="date" id="end-date" class="w-full p-2 border rounded text-sm">
+                        </div>
+                    </div>
+                    <p class="text-xs text-blue-600 mt-1">
+                        空白の場合は全期間のデータをエクスポートします
+                    </p>
+                </div>
+                
+                <button id="export-all" 
+                    class="w-full bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-md font-medium">
+                    📤 全データをダウンロード
+                </button>
+                
+                <div id="all-export-status" class="mt-4 hidden"></div>
+            </div>
+            
+            <!-- ユーザー別エクスポート -->
+            <div class="bg-green-50 p-6 rounded-lg mb-6">
+                <h3 class="text-lg font-semibold text-green-900 mb-4">👤 ユーザー別エクスポート</h3>
+                <p class="text-green-700 text-sm mb-4">
+                    特定ユーザーのデータのみをGeoJSON形式でダウンロードします。
+                </p>
+                
+                <div class="mb-4">
+                    <button id="load-users" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm">
+                        📋 ユーザー一覧を読み込み
+                    </button>
+                </div>
+                
+                <div id="users-list" class="hidden">
+                    <label class="block text-sm font-medium text-green-800 mb-2">ユーザーを選択</label>
+                    <select id="selected-user" class="w-full p-2 border rounded mb-3">
+                        <option value="">ユーザーを選択...</option>
+                    </select>
+                    
+                    <button id="export-user" class="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded">
+                        📤 選択ユーザーのデータをダウンロード
+                    </button>
+                </div>
+                
+                <div id="user-export-status" class="mt-4 hidden"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- ローディングオーバーレイ -->
+    <div id="loading-overlay" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white p-6 rounded-lg shadow-lg flex items-center space-x-3">
+            <div class="spinner"></div>
+            <span class="text-gray-700">処理中...</span>
+        </div>
+    </div>
+    
+    <script>
+        class SimpleExportTool {
+            constructor() {
+                this.password = null;
+                this.init();
+            }
+            
+            init() {
+                this.setupEventListeners();
+            }
+            
+            setupEventListeners() {
+                // パスワードフォーム
+                document.getElementById('password-form').addEventListener('submit', this.handlePasswordSubmit.bind(this));
+                
+                // エクスポートツール内のイベント
+                document.getElementById('logout-btn').addEventListener('click', this.handleLogout.bind(this));
+                document.getElementById('refresh-stats').addEventListener('click', this.loadDatabaseStats.bind(this));
+                
+                // エクスポート機能
+                document.getElementById('export-all').addEventListener('click', this.handleAllExport.bind(this));
+                document.getElementById('load-users').addEventListener('click', this.loadUsers.bind(this));
+                document.getElementById('export-user').addEventListener('click', this.handleUserExport.bind(this));
+            }
+            
+            async handlePasswordSubmit(e) {
+                e.preventDefault();
+                
+                const password = document.getElementById('password').value;
+                
+                try {
+                    this.showLoading();
+                    
+                    const response = await fetch('/api/developer/simple_export/verify-password', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ password })
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.valid) {
+                        this.password = password;
+                        this.showExportTools();
+                        await this.loadDatabaseStats();
+                    } else {
+                        this.showPasswordError();
+                    }
+                    
+                } catch (error) {
+                    console.error('Password verification failed:', error);
+                    this.showPasswordError();
+                } finally {
+                    this.hideLoading();
+                }
+            }
+            
+            showExportTools() {
+                document.getElementById('password-screen').classList.add('hidden');
+                document.getElementById('export-tools').classList.remove('hidden');
+            }
+            
+            showPasswordError() {
+                document.getElementById('password-error').classList.remove('hidden');
+                document.getElementById('password').value = '';
+            }
+            
+            handleLogout() {
+                this.password = null;
+                document.getElementById('export-tools').classList.add('hidden');
+                document.getElementById('password-screen').classList.remove('hidden');
+                document.getElementById('password-error').classList.add('hidden');
+                document.getElementById('password').value = '';
+            }
+            
+            async loadDatabaseStats() {
+                try {
+                    this.showLoading();
+                    
+                    const response = await fetch(`/api/developer/simple_export/database-stats?password=${this.password}`);
+                    
+                    if (!response.ok) {
+                        throw new Error('Failed to load stats');
+                    }
+                    
+                    const data = await response.json();
+                    this.displayDatabaseStats(data.database_stats);
+                    
+                } catch (error) {
+                    console.error('Failed to load database stats:', error);
+                    this.showError('データベース統計の取得に失敗しました');
+                } finally {
+                    this.hideLoading();
+                }
+            }
+            
+            displayDatabaseStats(stats) {
+                const container = document.getElementById('database-stats');
+                
+                container.innerHTML = `
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                        <div class="bg-white p-4 rounded border">
+                            <div class="text-2xl font-bold text-blue-600">${stats.total_records.toLocaleString()}</div>
+                            <div class="text-sm text-gray-600">総レコード数</div>
+                        </div>
+                        <div class="bg-white p-4 rounded border">
+                            <div class="text-2xl font-bold text-green-600">${stats.valid_coordinates.toLocaleString()}</div>
+                            <div class="text-sm text-gray-600">有効座標数</div>
+                        </div>
+                        <div class="bg-white p-4 rounded border">
+                            <div class="text-2xl font-bold text-red-600">${stats.invalid_coordinates.toLocaleString()}</div>
+                            <div class="text-sm text-gray-600">無効座標数</div>
+                        </div>
+                    </div>
+                    
+                    <!-- データ期間 -->
+                    ${stats.date_range ? `
+                        <div class="bg-yellow-50 p-4 rounded border mb-4">
+                            <h4 class="font-medium text-yellow-800 mb-2">📅 利用可能なデータ期間</h4>
+                            <div class="text-sm text-yellow-700">
+                                <div class="flex flex-col md:flex-row md:justify-between">
+                                    <div><strong>開始:</strong> ${new Date(stats.date_range.start).toLocaleDateString('ja-JP', {year: 'numeric', month: 'long', day: 'numeric'})}</div>
+                                    <div><strong>終了:</strong> ${new Date(stats.date_range.end).toLocaleDateString('ja-JP', {year: 'numeric', month: 'long', day: 'numeric'})}</div>
+                                </div>
+                                <div class="mt-1 text-xs">
+                                    期間選択時の参考にしてください
+                                </div>
+                            </div>
+                        </div>
+                    ` : ''}
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="bg-white p-4 rounded border">
+                            <h4 class="font-medium mb-2">ユーザー別データ数</h4>
+                            <div class="space-y-1 text-sm">
+                                ${Object.entries(stats.user_stats || {}).map(([user, count]) => `
+                                    <div class="flex justify-between">
+                                        <span>${user}</span>
+                                        <span class="font-medium">${count.toLocaleString()}</span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white p-4 rounded border">
+                            <h4 class="font-medium mb-2">データタイプ別</h4>
+                            <div class="space-y-1 text-sm">
+                                ${Object.entries(stats.type_stats || {}).map(([type, count]) => `
+                                    <div class="flex justify-between">
+                                        <span>${type}</span>
+                                        <span class="font-medium">${count.toLocaleString()}</span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            async handleAllExport() {
+                try {
+                    this.showLoading();
+                    this.showAllExportStatus('全データのGeoJSONファイルを生成中...', 'info');
+                    
+                    const thinRate = document.getElementById('thin-rate').value;
+                    const startDate = document.getElementById('start-date').value;
+                    const endDate = document.getElementById('end-date').value;
+                    
+                    let url = `/api/developer/simple_export/export-all-data?password=${this.password}&thin_rate=${thinRate}`;
+                    if (startDate) url += `&start_date=${startDate}`;
+                    if (endDate) url += `&end_date=${endDate}`;
+                    
+                    const response = await fetch(url);
+                    
+                    if (!response.ok) {
+                        throw new Error('Export failed');
+                    }
+                    
+                    await this.downloadFile(response);
+                    
+                    let statusMessage = `全データのダウンロードが完了しました！（間引き率: ${(parseFloat(thinRate) * 100).toFixed(0)}%`;
+                    if (startDate || endDate) {
+                        statusMessage += `, 期間: ${startDate || '開始'} 〜 ${endDate || '終了'}`;
+                    }
+                    statusMessage += '）';
+                    
+                    this.showAllExportStatus(statusMessage, 'success');
+                    
+                } catch (error) {
+                    console.error('All data export failed:', error);
+                    this.showAllExportStatus('全データエクスポートに失敗しました', 'error');
+                } finally {
+                    this.hideLoading();
+                }
+            }
+            
+            async loadUsers() {
+                try {
+                    this.showLoading();
+                    
+                    const response = await fetch(`/api/developer/simple_export/get-users?password=${this.password}`);
+                    const data = await response.json();
+                    
+                    const selectElement = document.getElementById('selected-user');
+                    selectElement.innerHTML = '<option value="">ユーザーを選択...</option>';
+                    
+                    data.users.forEach(user => {
+                        const option = document.createElement('option');
+                        option.value = user.username;
+                        option.textContent = `${user.username} (${user.record_count.toLocaleString()}件)`;
+                        selectElement.appendChild(option);
+                    });
+                    
+                    document.getElementById('users-list').classList.remove('hidden');
+                    
+                } catch (error) {
+                    console.error('Failed to load users:', error);
+                    this.showUserExportStatus('ユーザー一覧の取得に失敗しました', 'error');
+                } finally {
+                    this.hideLoading();
+                }
+            }
+            
+            async handleUserExport() {
+                const selectedUser = document.getElementById('selected-user').value;
+                if (!selectedUser) {
+                    this.showUserExportStatus('ユーザーを選択してください', 'error');
+                    return;
+                }
+                
+                try {
+                    this.showLoading();
+                    this.showUserExportStatus(`${selectedUser}のデータをエクスポート中...`, 'info');
+                    
+                    const response = await fetch(
+                        `/api/developer/simple_export/export-user-data?password=${this.password}&username=${encodeURIComponent(selectedUser)}`
+                    );
+                    
+                    if (!response.ok) {
+                        throw new Error('User export failed');
+                    }
+                    
+                    await this.downloadFile(response);
+                    this.showUserExportStatus(`${selectedUser}のデータダウンロードが完了しました！`, 'success');
+                    
+                } catch (error) {
+                    console.error('User export failed:', error);
+                    this.showUserExportStatus('ユーザーデータのエクスポートに失敗しました', 'error');
+                } finally {
+                    this.hideLoading();
+                }
+            }
+            
+            async downloadFile(response) {
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                
+                // ファイル名を取得
+                const contentDisposition = response.headers.get('content-disposition');
+                let filename = 'pathfinder_data.geojson';
+                if (contentDisposition) {
+                    const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+                    if (filenameMatch) {
+                        filename = filenameMatch[1].replace(/['"]/g, '');
+                    }
+                }
+                
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+            }
+            
+            showAllExportStatus(message, type = 'info') {
+                this.showStatus('all-export-status', message, type);
+            }
+            
+            showUserExportStatus(message, type = 'info') {
+                this.showStatus('user-export-status', message, type);
+            }
+            
+            showStatus(containerId, message, type = 'info') {
+                const container = document.getElementById(containerId);
+                const colorClass = type === 'success' ? 'bg-green-100 text-green-700 border-green-300' :
+                                 type === 'error' ? 'bg-red-100 text-red-700 border-red-300' :
+                                 'bg-blue-100 text-blue-700 border-blue-300';
+                
+                container.innerHTML = `
+                    <div class="${colorClass} border px-4 py-3 rounded">
+                        ${message}
+                    </div>
+                `;
+                container.classList.remove('hidden');
+                
+                if (type !== 'error') {
+                    setTimeout(() => {
+                        container.classList.add('hidden');
+                    }, 5000);
+                }
+            }
+            
+            showError(message) {
+                alert(`エラー: ${message}`);
+            }
+            
+            showLoading() {
+                document.getElementById('loading-overlay').classList.remove('hidden');
+            }
+            
+            hideLoading() {
+                document.getElementById('loading-overlay').classList.add('hidden');
+            }
+        }
+        
+        // アプリケーション起動
+        document.addEventListener('DOMContentLoaded', () => {
+            new SimpleExportTool();
+        });
+    </script>
+</body>
+</html>
