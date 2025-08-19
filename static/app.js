@@ -133,16 +133,30 @@ class PathfinderApp {
                             </div>
                         </div>
                         
-                        <button type="submit" 
-                            class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors">
-                            ログイン
-                        </button>
+                        <div class="space-y-3">
+                            <button type="submit" 
+                                class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors">
+                                ログイン
+                            </button>
+                            
+                            <button type="button" id="signup-btn"
+                                class="group relative w-full flex justify-center py-2 px-4 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors">
+                                新規アカウント作成
+                            </button>
+                            
+                            <button type="button" id="demo-login-btn"
+                                class="group relative w-full flex justify-center py-2 px-4 border border-gray-300 text-sm font-medium rounded-md text-orange-700 bg-orange-50 hover:bg-orange-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition-colors">
+                                デモアカウントでログイン
+                            </button>
+                        </div>
                     </form>
                 </div>
             </div>
         `;
         
         document.getElementById('login-form').addEventListener('submit', this.handleLogin.bind(this));
+        document.getElementById('signup-btn').addEventListener('click', this.handleSignupClick.bind(this));
+        document.getElementById('demo-login-btn').addEventListener('click', this.handleDemoLogin.bind(this));
     }
     
     async handleLogin(e) {
@@ -167,6 +181,65 @@ class PathfinderApp {
             this.showDashboard();
         } catch (error) {
             this.showToast(`ログインに失敗しました: ${error.message}`, 'error');
+        } finally {
+            this.hideLoading();
+        }
+    }
+    
+    handleSignupClick() {
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        
+        if (!email || !password) {
+            this.showToast('メールアドレスとパスワードを入力してください', 'error');
+            return;
+        }
+        
+        this.handleSignup(email, password);
+    }
+    
+    async handleSignup(email, password) {
+        this.showLoading();
+        
+        try {
+            const response = await this.makeRequest('/api/auth/signup', {
+                method: 'POST',
+                body: JSON.stringify({ email, password })
+            });
+            
+            this.token = response.access_token;
+            localStorage.setItem('token', this.token);
+            
+            await this.loadUserProfile();
+            this.showToast('アカウント作成に成功しました', 'success');
+            this.showDashboard();
+        } catch (error) {
+            this.showToast(`アカウント作成に失敗しました: ${error.message}`, 'error');
+        } finally {
+            this.hideLoading();
+        }
+    }
+    
+    async handleDemoLogin() {
+        this.showLoading();
+        
+        try {
+            const response = await this.makeRequest('/api/auth/login', {
+                method: 'POST',
+                body: JSON.stringify({ 
+                    email: 'iowlb3e5aq@sute.jp', 
+                    password: '000000' 
+                })
+            });
+            
+            this.token = response.access_token;
+            localStorage.setItem('token', this.token);
+            
+            await this.loadUserProfile();
+            this.showToast('デモアカウントでログインしました', 'success');
+            this.showDashboard();
+        } catch (error) {
+            this.showToast(`デモログインに失敗しました: ${error.message}`, 'error');
         } finally {
             this.hideLoading();
         }

@@ -49,6 +49,26 @@ async def login(user_credentials: UserLogin):
     except Exception as e:
         raise HTTPException(status_code=401, detail=f"Authentication failed: {str(e)}")
 
+@router.post("/signup", response_model=Token)
+async def signup(user_credentials: UserLogin):
+    try:
+        response = supabase.auth.sign_up({
+            "email": user_credentials.email,
+            "password": user_credentials.password
+        })
+        
+        if not response.user:
+            raise HTTPException(status_code=400, detail="Signup failed")
+        
+        access_token = create_access_token(
+            data={"sub": response.user.id, "email": response.user.email}
+        )
+        
+        return Token(access_token=access_token, token_type="bearer")
+    
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Signup failed: {str(e)}")
+
 @router.post("/logout")
 async def logout(current_user: dict = Depends(get_current_user)):
     try:
