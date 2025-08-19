@@ -2,7 +2,9 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta name="theme-color" content="#3498db">
+    <meta name="description" content="Google Timeline データの地図可視化">
     <title>Pathfinder - 地図表示</title>
     
     <!-- Deck.gl CDN -->
@@ -24,11 +26,13 @@
         
         #header {
             background: white;
-            padding: 10px 20px;
+            padding: 10px 15px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             display: flex;
             justify-content: space-between;
             align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
         }
         
         #map {
@@ -40,12 +44,19 @@
             position: absolute;
             top: 10px;
             right: 10px;
+            left: 10px;
             background: white;
-            padding: 15px;
+            padding: 12px;
             border-radius: 8px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-            min-width: 200px;
             z-index: 1000;
+        }
+        
+        @media (min-width: 640px) {
+            #info-panel {
+                left: auto;
+                min-width: 200px;
+            }
         }
         
         #tooltip {
@@ -102,14 +113,28 @@
             background: #3498db;
             color: white;
             border: none;
-            padding: 8px 16px;
+            padding: 10px 16px;
             border-radius: 4px;
             cursor: pointer;
             font-size: 14px;
+            touch-action: manipulation;
+            min-height: 44px;
+            width: 100%;
+            margin-bottom: 5px;
         }
         
         .btn:hover {
             background: #2980b9;
+        }
+        
+        @media (min-width: 640px) {
+            .btn {
+                width: auto;
+                margin-bottom: 0;
+                margin-right: 5px;
+                min-height: auto;
+                padding: 8px 16px;
+            }
         }
         
         .btn-secondary {
@@ -131,6 +156,46 @@
             color: #666;
             z-index: 1000;
         }
+        
+        /* 折りたたみ機能 */
+        .collapse-btn {
+            display: none;
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            margin-bottom: 10px;
+            width: 100%;
+            touch-action: manipulation;
+        }
+        
+        .collapse-btn:hover {
+            background: #2980b9;
+        }
+        
+        .panel-content {
+            transition: max-height 0.3s ease-out, opacity 0.3s ease-out;
+            overflow: hidden;
+        }
+        
+        .panel-collapsed .panel-content {
+            max-height: 0;
+            opacity: 0;
+        }
+        
+        @media (max-width: 640px) {
+            .collapse-btn {
+                display: block;
+            }
+            
+            #info-panel {
+                max-height: 50vh;
+                overflow-y: auto;
+            }
+        }
     </style>
 </head>
 <body>
@@ -147,30 +212,35 @@
         <div id="map">
             <div id="attribution" class="attribution">© OpenStreetMap contributors</div>
             <div id="info-panel">
-                <div id="user-info">
-                    <div class="loading">
-                        <div class="spinner"></div>
-                        <span>ユーザー情報を読み込み中...</span>
+                <button class="collapse-btn" onclick="togglePanel()">
+                    <span id="toggle-text">▼ 情報パネルを閉じる</span>
+                </button>
+                
+                <div class="panel-content" id="panel-content">
+                    <div id="user-info">
+                        <div class="loading">
+                            <div class="spinner"></div>
+                            <span>ユーザー情報を読み込み中...</span>
+                        </div>
+                    </div>
+                    
+                    <div id="data-info" style="margin-top: 15px;">
+                        <div class="loading">
+                            <div class="spinner"></div>
+                            <span>データを読み込み中...</span>
+                        </div>
+                    </div>
+                    
+                    <!-- 地図選択 -->
+                    <div style="margin-top: 15px;">
+                        <label style="font-size: 12px; font-weight: bold; color: #2c3e50;">🗺️ 地図スタイル</label>
+                        <select id="map-style" style="width: 100%; padding: 4px; margin-top: 5px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px;">
+                            <option value="osm">OpenStreetMap (標準)</option>
+                            <option value="white">白基調 (クリーン)</option>
+                            <option value="satellite">衛星画像</option>
+                        </select>
                     </div>
                 </div>
-                
-                <div id="data-info" style="margin-top: 15px;">
-                    <div class="loading">
-                        <div class="spinner"></div>
-                        <span>データを読み込み中...</span>
-                    </div>
-                </div>
-                
-                <!-- 地図選択 -->
-                <div style="margin-top: 15px;">
-                    <label style="font-size: 12px; font-weight: bold; color: #2c3e50;">🗺️ 地図スタイル</label>
-                    <select id="map-style" style="width: 100%; padding: 4px; margin-top: 5px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px;">
-                        <option value="osm">OpenStreetMap (標準)</option>
-                        <option value="white">白基調 (クリーン)</option>
-                        <option value="satellite">衛星画像</option>
-                    </select>
-                </div>
-                
             </div>
             
             <div id="tooltip"></div>
@@ -734,6 +804,22 @@
         
         function goHome() {
             window.location.href = '/';
+        }
+        
+        // パネル折りたたみ機能
+        function togglePanel() {
+            const panel = document.getElementById('info-panel');
+            const toggleText = document.getElementById('toggle-text');
+            
+            if (panel.classList.contains('panel-collapsed')) {
+                // 展開
+                panel.classList.remove('panel-collapsed');
+                toggleText.textContent = '▼ 情報パネルを閉じる';
+            } else {
+                // 折りたたみ
+                panel.classList.add('panel-collapsed');
+                toggleText.textContent = '▶ 情報パネルを開く';
+            }
         }
         
         // アプリケーション起動

@@ -90,13 +90,13 @@ class PathfinderApp {
         const app = document.getElementById('app');
         
         app.innerHTML = `
-            <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-                <div class="max-w-md w-full space-y-8 p-8 bg-white rounded-xl shadow-lg fade-in">
+            <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4 py-6">
+                <div class="w-full max-w-md space-y-6 p-6 sm:p-8 bg-white rounded-xl shadow-lg fade-in">
                     <div class="text-center">
                         <div class="flex justify-between items-start mb-4">
                             <div></div>
                             <div>
-                                <h2 class="mt-6 text-3xl font-extrabold text-gray-900">
+                                <h2 class="text-2xl sm:text-3xl font-extrabold text-gray-900">
                                     🌐 Pathfinder Web
                                 </h2>
                                 <p class="mt-2 text-sm text-gray-600">
@@ -135,17 +135,17 @@ class PathfinderApp {
                         
                         <div class="space-y-3">
                             <button type="submit" 
-                                class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors">
+                                class="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors touch-manipulation">
                                 ログイン
                             </button>
                             
                             <button type="button" id="signup-btn"
-                                class="group relative w-full flex justify-center py-2 px-4 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors">
+                                class="group relative w-full flex justify-center py-3 px-4 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors touch-manipulation">
                                 新規アカウント作成
                             </button>
                             
                             <button type="button" id="demo-login-btn"
-                                class="group relative w-full flex justify-center py-2 px-4 border border-gray-300 text-sm font-medium rounded-md text-orange-700 bg-orange-50 hover:bg-orange-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition-colors">
+                                class="group relative w-full flex justify-center py-3 px-4 border border-gray-300 text-sm font-medium rounded-md text-orange-700 bg-orange-50 hover:bg-orange-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition-colors touch-manipulation">
                                 デモアカウントでログイン
                             </button>
                         </div>
@@ -256,17 +256,17 @@ class PathfinderApp {
                     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                         <div class="flex justify-between h-16">
                             <div class="flex items-center">
-                                <h1 class="text-xl font-semibold text-gray-900">
+                                <h1 class="text-lg sm:text-xl font-semibold text-gray-900">
                                     🌐 Pathfinder Web
                                 </h1>
                             </div>
                             
-                            <div class="flex items-center space-x-4">
-                                <span class="text-sm text-gray-600">
+                            <div class="flex items-center space-x-2 sm:space-x-4">
+                                <span class="text-xs sm:text-sm text-gray-600 hidden sm:inline">
                                     👤 ${this.user?.email || 'ユーザー'}
                                 </span>
                                 <button id="logout-btn" 
-                                    class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors">
+                                    class="bg-red-600 hover:bg-red-700 text-white px-3 py-2 sm:px-4 rounded-md text-xs sm:text-sm font-medium transition-colors touch-manipulation">
                                     ログアウト
                                 </button>
                             </div>
@@ -316,7 +316,7 @@ class PathfinderApp {
                                 </h3>
                                 <div id="summary-content">
                                     <button id="load-summary-btn" 
-                                        class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium">
+                                        class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-md text-sm font-medium touch-manipulation w-full sm:w-auto">
                                         📥 サマリーを読み込む
                                     </button>
                                 </div>
@@ -333,13 +333,13 @@ class PathfinderApp {
                                     <p class="text-gray-600">
                                         Google TimelineのJSONファイルをアップロードして、位置データを地図で可視化できます。
                                     </p>
-                                    <div class="flex items-center justify-between p-4 bg-blue-50 rounded-lg">
+                                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 bg-blue-50 rounded-lg space-y-3 sm:space-y-0">
                                         <div>
                                             <h4 class="font-medium text-blue-900">Google Timeline データをインポート</h4>
                                             <p class="text-sm text-blue-700 mt-1">エクスポート方法の説明とファイルアップロード機能</p>
                                         </div>
                                         <a href="/static/upload.html" 
-                                            class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors inline-block">
+                                            class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-md text-sm font-medium transition-colors inline-block text-center touch-manipulation">
                                             📤 アップロードページへ
                                         </a>
                                     </div>
@@ -350,17 +350,17 @@ class PathfinderApp {
                         <!-- タイムラインデータセクション -->
                         <div class="bg-white overflow-hidden shadow rounded-lg">
                             <div class="px-4 py-5 sm:p-6">
-                                <div class="flex justify-between items-center mb-4">
+                                <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 space-y-3 sm:space-y-0">
                                     <h3 class="text-lg leading-6 font-medium text-gray-900">
                                         🗂️ タイムラインデータ
                                     </h3>
-                                    <div class="space-x-2">
+                                    <div class="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
                                         <a href="/static/map.html" 
-                                            class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium inline-block">
+                                            class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-md text-sm font-medium inline-block text-center touch-manipulation">
                                             🗺️ 地図で表示
                                         </a>
                                         <button id="load-data-btn" 
-                                            class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm font-medium">
+                                            class="bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-md text-sm font-medium touch-manipulation">
                                             📥 データを読み込む
                                         </button>
                                     </div>
