@@ -5,10 +5,10 @@ class PathfinderApp {
         this.currentPage = 'login';
         this.timelineData = [];
         this.summary = null;
-        
+
         this.init();
     }
-    
+
     async init() {
         if (this.token) {
             const isValid = await this.verifyToken();
@@ -22,50 +22,50 @@ class PathfinderApp {
             this.showLogin();
         }
     }
-    
+
     showLoading() {
         document.getElementById('loading-overlay').classList.remove('hidden');
     }
-    
+
     hideLoading() {
         document.getElementById('loading-overlay').classList.add('hidden');
     }
-    
+
     showToast(message, type = 'info') {
         const toast = document.createElement('div');
         const bgColor = type === 'error' ? 'bg-red-500' : type === 'success' ? 'bg-green-500' : 'bg-blue-500';
-        
+
         toast.className = `${bgColor} text-white px-6 py-3 rounded-lg shadow-lg mb-3 fade-in`;
         toast.textContent = message;
-        
+
         document.getElementById('toast-container').appendChild(toast);
-        
+
         setTimeout(() => {
             toast.remove();
         }, 5000);
     }
-    
+
     async makeRequest(url, options = {}) {
         const defaultOptions = {
             headers: {
                 'Content-Type': 'application/json',
             }
         };
-        
+
         if (this.token) {
             defaultOptions.headers['Authorization'] = `Bearer ${this.token}`;
         }
-        
+
         const response = await fetch(url, { ...defaultOptions, ...options });
-        
+
         if (!response.ok) {
             const errorData = await response.json();
             throw new Error(errorData.detail || 'リクエストに失敗しました');
         }
-        
+
         return response.json();
     }
-    
+
     async verifyToken() {
         try {
             await this.makeRequest('/api/auth/verify');
@@ -76,7 +76,7 @@ class PathfinderApp {
             return false;
         }
     }
-    
+
     async loadUserProfile() {
         try {
             this.user = await this.makeRequest('/api/auth/profile');
@@ -84,11 +84,11 @@ class PathfinderApp {
             console.error('Failed to load user profile:', error);
         }
     }
-    
+
     showLogin() {
         this.currentPage = 'login';
         const app = document.getElementById('app');
-        
+
         app.innerHTML = `
             <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4 py-6">
                 <div class="w-full max-w-md space-y-6 p-6 sm:p-8 bg-white rounded-xl shadow-lg fade-in">
@@ -153,29 +153,29 @@ class PathfinderApp {
                 </div>
             </div>
         `;
-        
+
         document.getElementById('login-form').addEventListener('submit', this.handleLogin.bind(this));
         document.getElementById('signup-btn').addEventListener('click', this.handleSignupClick.bind(this));
         document.getElementById('demo-login-btn').addEventListener('click', this.handleDemoLogin.bind(this));
     }
-    
+
     async handleLogin(e) {
         e.preventDefault();
-        
+
         const email = document.getElementById('email').value;
         const password = document.getElementById('password').value;
-        
+
         this.showLoading();
-        
+
         try {
             const response = await this.makeRequest('/api/auth/login', {
                 method: 'POST',
                 body: JSON.stringify({ email, password })
             });
-            
+
             this.token = response.access_token;
             localStorage.setItem('token', this.token);
-            
+
             await this.loadUserProfile();
             this.showToast('ログインに成功しました', 'success');
             this.showDashboard();
@@ -185,31 +185,31 @@ class PathfinderApp {
             this.hideLoading();
         }
     }
-    
+
     handleSignupClick() {
         const email = document.getElementById('email').value;
         const password = document.getElementById('password').value;
-        
+
         if (!email || !password) {
             this.showToast('メールアドレスとパスワードを入力してください', 'error');
             return;
         }
-        
+
         this.handleSignup(email, password);
     }
-    
+
     async handleSignup(email, password) {
         this.showLoading();
-        
+
         try {
             const response = await this.makeRequest('/api/auth/signup', {
                 method: 'POST',
                 body: JSON.stringify({ email, password })
             });
-            
+
             this.token = response.access_token;
             localStorage.setItem('token', this.token);
-            
+
             await this.loadUserProfile();
             this.showToast('アカウント作成に成功しました', 'success');
             this.showDashboard();
@@ -219,22 +219,22 @@ class PathfinderApp {
             this.hideLoading();
         }
     }
-    
+
     async handleDemoLogin() {
         this.showLoading();
-        
+
         try {
             const response = await this.makeRequest('/api/auth/login', {
                 method: 'POST',
-                body: JSON.stringify({ 
-                    email: 'iowlb3e5aq@sute.jp', 
-                    password: '000000' 
+                body: JSON.stringify({
+                    email: 'iowlb3e5aq@sute.jp',
+                    password: '000000'
                 })
             });
-            
+
             this.token = response.access_token;
             localStorage.setItem('token', this.token);
-            
+
             await this.loadUserProfile();
             this.showToast('デモアカウントでログインしました', 'success');
             this.showDashboard();
@@ -244,11 +244,11 @@ class PathfinderApp {
             this.hideLoading();
         }
     }
-    
+
     showDashboard() {
         this.currentPage = 'dashboard';
         const app = document.getElementById('app');
-        
+
         app.innerHTML = `
             <div class="min-h-screen bg-gray-50">
                 <!-- ヘッダー -->
@@ -291,9 +291,9 @@ class PathfinderApp {
                                     <div>
                                         <p class="text-sm text-gray-600">ユーザー名</p>
                                         <div id="username-section">
-                                            ${this.user?.username ? 
-                                                `<p class="text-lg font-medium text-gray-900">${this.user.username}</p>` :
-                                                `<div class="flex items-center space-x-2">
+                                            ${this.user?.username ?
+                `<p class="text-lg font-medium text-gray-900">${this.user.username}</p>` :
+                `<div class="flex items-center space-x-2">
                                                     <input id="username-input" type="text" placeholder="ユーザー名を入力" 
                                                         class="border border-gray-300 rounded px-3 py-1 text-sm">
                                                     <button id="set-username-btn" 
@@ -301,7 +301,7 @@ class PathfinderApp {
                                                         設定
                                                     </button>
                                                 </div>`
-                                            }
+            }
                                         </div>
                                     </div>
                                 </div>
@@ -314,11 +314,15 @@ class PathfinderApp {
                                 <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">
                                     📊 データサマリー
                                 </h3>
-                                <div id="summary-content">
+                                <div id="summary-content" class="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3">
                                     <button id="load-summary-btn" 
                                         class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-md text-sm font-medium touch-manipulation w-full sm:w-auto">
                                         📥 サマリーを読み込む
                                     </button>
+                                    <a href="/static/map.html" 
+                                        class="bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-md text-sm font-medium inline-block text-center touch-manipulation w-full sm:w-auto">
+                                        🗺️ 地図で表示
+                                    </a>
                                 </div>
                             </div>
                         </div>
@@ -346,57 +350,31 @@ class PathfinderApp {
                                 </div>
                             </div>
                         </div>
-                        
-                        <!-- タイムラインデータセクション -->
-                        <div class="bg-white overflow-hidden shadow rounded-lg">
-                            <div class="px-4 py-5 sm:p-6">
-                                <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 space-y-3 sm:space-y-0">
-                                    <h3 class="text-lg leading-6 font-medium text-gray-900">
-                                        🗂️ タイムラインデータ
-                                    </h3>
-                                    <div class="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
-                                        <a href="/static/map.html" 
-                                            class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-md text-sm font-medium inline-block text-center touch-manipulation">
-                                            🗺️ 地図で表示
-                                        </a>
-                                        <button id="load-data-btn" 
-                                            class="bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-md text-sm font-medium touch-manipulation">
-                                            📥 データを読み込む
-                                        </button>
-                                    </div>
-                                </div>
-                                <div id="timeline-content">
-                                    <p class="text-gray-500 text-center py-8">
-                                        「データを読み込む」ボタンをクリックして、タイムラインデータを表示してください。
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
                     </div>
                 </main>
             </div>
         `;
-        
+
         // イベントリスナーを設定
         this.setupDashboardEventListeners();
     }
-    
+
     setupDashboardEventListeners() {
         document.getElementById('logout-btn').addEventListener('click', this.handleLogout.bind(this));
         document.getElementById('load-summary-btn').addEventListener('click', this.loadSummary.bind(this));
-        document.getElementById('load-data-btn').addEventListener('click', this.loadTimelineData.bind(this));
-        
+
+
         const setUsernameBtn = document.getElementById('set-username-btn');
         if (setUsernameBtn) {
             setUsernameBtn.addEventListener('click', this.setUsername.bind(this));
         }
-        
+
         // アップロード関連のイベントリスナーは upload.html で処理
     }
-    
+
     async handleLogout() {
         this.showLoading();
-        
+
         try {
             await this.makeRequest('/api/auth/logout', { method: 'POST' });
             localStorage.removeItem('token');
@@ -410,22 +388,22 @@ class PathfinderApp {
             this.hideLoading();
         }
     }
-    
+
     async setUsername() {
         const username = document.getElementById('username-input').value.trim();
         if (!username) {
             this.showToast('ユーザー名を入力してください', 'error');
             return;
         }
-        
+
         this.showLoading();
-        
+
         try {
             await this.makeRequest('/api/auth/set-username', {
                 method: 'POST',
                 body: JSON.stringify({ username })
             });
-            
+
             this.user.username = username;
             this.showToast('ユーザー名を設定しました', 'success');
             this.showDashboard(); // リフレッシュ
@@ -435,10 +413,10 @@ class PathfinderApp {
             this.hideLoading();
         }
     }
-    
+
     async loadSummary() {
         this.showLoading();
-        
+
         try {
             const response = await this.makeRequest('/api/timeline/summary');
             this.summary = response.summary;
@@ -449,17 +427,17 @@ class PathfinderApp {
             this.hideLoading();
         }
     }
-    
+
     displaySummary() {
         const summaryContent = document.getElementById('summary-content');
-        
+
         if (!this.summary || this.summary.total_records === 0) {
             summaryContent.innerHTML = `
                 <p class="text-gray-500">データが見つかりませんでした。ユーザー名を設定してデータを確認してください。</p>
             `;
             return;
         }
-        
+
         summaryContent.innerHTML = `
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                 <div class="bg-blue-50 p-4 rounded-lg">
@@ -506,10 +484,10 @@ class PathfinderApp {
             </div>
         `;
     }
-    
+
     async loadTimelineData() {
         this.showLoading();
-        
+
         try {
             const response = await this.makeRequest('/api/timeline/data?limit=100');
             this.timelineData = response.data;
@@ -520,17 +498,17 @@ class PathfinderApp {
             this.hideLoading();
         }
     }
-    
+
     displayTimelineData() {
         const timelineContent = document.getElementById('timeline-content');
-        
+
         if (!this.timelineData || this.timelineData.length === 0) {
             timelineContent.innerHTML = `
                 <p class="text-gray-500 text-center py-8">データが見つかりませんでした。</p>
             `;
             return;
         }
-        
+
         timelineContent.innerHTML = `
             <div class="mb-4">
                 <p class="text-sm text-gray-600">${this.timelineData.length} 件のデータ（最新100件）</p>
@@ -558,9 +536,8 @@ class PathfinderApp {
                         ${this.timelineData.map(item => `
                             <tr class="hover:bg-gray-50">
                                 <td class="px-6 py-4 whitespace-nowrap">
-                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                        item.type === 'activitySegment' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'
-                                    }">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${item.type === 'activitySegment' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'
+            }">
                                         ${item.type}
                                     </span>
                                 </td>
@@ -568,8 +545,8 @@ class PathfinderApp {
                                     ${item.start_time ? new Date(item.start_time).toLocaleString('ja-JP') : 'N/A'}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    ${item.latitude && item.longitude ? 
-                                        `${item.latitude.toFixed(4)}, ${item.longitude.toFixed(4)}` : 'N/A'}
+                                    ${item.latitude && item.longitude ?
+                `${item.latitude.toFixed(4)}, ${item.longitude.toFixed(4)}` : 'N/A'}
                                 </td>
                                 <td class="px-6 py-4 text-sm text-gray-500">
                                     ${item.activity_type || item.visit_semantictype || 'N/A'}
@@ -581,15 +558,15 @@ class PathfinderApp {
             </div>
         `;
     }
-    
+
     handleFileSelect(event) {
         const file = event.target.files[0];
         const uploadBtn = document.getElementById('upload-btn');
         const uploadResult = document.getElementById('upload-result');
-        
+
         // 結果をクリア
         uploadResult.classList.add('hidden');
-        
+
         if (file) {
             // ファイルサイズチェック（100MB）
             const maxSize = 100 * 1024 * 1024;
@@ -598,35 +575,35 @@ class PathfinderApp {
                 uploadBtn.disabled = true;
                 return;
             }
-            
+
             // ファイル形式チェック
             if (!file.name.toLowerCase().endsWith('.json')) {
                 this.showToast('JSONファイルを選択してください', 'error');
                 uploadBtn.disabled = true;
                 return;
             }
-            
+
             uploadBtn.disabled = false;
         } else {
             uploadBtn.disabled = true;
         }
     }
-    
+
     async handleFileUpload() {
         const fileInput = document.getElementById('timeline-file');
         const file = fileInput.files[0];
-        
+
         if (!file) {
             this.showToast('ファイルを選択してください', 'error');
             return;
         }
-        
+
         const uploadProgress = document.getElementById('upload-progress');
         const progressBar = document.getElementById('progress-bar');
         const progressText = document.getElementById('progress-text');
         const uploadResult = document.getElementById('upload-result');
         const uploadBtn = document.getElementById('upload-btn');
-        
+
         try {
             // UI状態を更新
             uploadBtn.disabled = true;
@@ -634,15 +611,15 @@ class PathfinderApp {
             uploadResult.classList.add('hidden');
             progressBar.style.width = '0%';
             progressText.textContent = '⚡ 高速アップロード中...';
-            
+
             // FormDataを作成
             const formData = new FormData();
             formData.append('file', file);
-            
+
             // アップロード実行（タイムアウト設定）
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 1800000); // 30分タイムアウト
-            
+
             const response = await fetch('/api/timeline/upload', {
                 method: 'POST',
                 headers: {
@@ -651,13 +628,13 @@ class PathfinderApp {
                 body: formData,
                 signal: controller.signal
             });
-            
+
             clearTimeout(timeoutId);
-            
+
             // プログレスバーを100%に
             progressBar.style.width = '100%';
             progressText.textContent = '⚡ 高速処理中...';
-            
+
             // 大きなファイルの場合は追加の待機メッセージ
             if (file.size > 10 * 1024 * 1024) { // 10MB以上
                 setTimeout(() => {
@@ -666,20 +643,20 @@ class PathfinderApp {
                     }
                 }, 5000);
             }
-            
+
             const result = await response.json();
-            
+
             if (response.ok) {
                 this.displayUploadSuccess(result);
                 this.showToast('高速アップロードが完了しました', 'success');
-                
+
                 // サマリーを自動更新
                 await this.loadSummary();
             } else {
                 this.displayUploadError(result);
                 this.showToast(`アップロードに失敗しました: ${result.detail}`, 'error');
             }
-            
+
         } catch (error) {
             this.displayUploadError({ detail: error.message });
             this.showToast(`アップロードエラー: ${error.message}`, 'error');
@@ -690,10 +667,10 @@ class PathfinderApp {
             fileInput.value = '';
         }
     }
-    
+
     displayUploadSuccess(result) {
         const uploadResult = document.getElementById('upload-result');
-        
+
         uploadResult.innerHTML = `
             <div class="bg-green-50 border border-green-200 rounded-md p-4">
                 <div class="flex items-start">
@@ -705,21 +682,21 @@ class PathfinderApp {
                             <p><strong>ファイル名:</strong> ${result.filename}</p>
                             <p><strong>処理レコード数:</strong> ${result.total_records.toLocaleString()}</p>
                             <p><strong>保存レコード数:</strong> ${result.saved_records.toLocaleString()}</p>
-                            ${result.validation_summary && result.validation_summary.warning_count > 0 ? 
-                                `<p class="text-yellow-600"><strong>警告:</strong> ${result.validation_summary.warning_count}件</p>` : ''
-                            }
+                            ${result.validation_summary && result.validation_summary.warning_count > 0 ?
+                `<p class="text-yellow-600"><strong>警告:</strong> ${result.validation_summary.warning_count}件</p>` : ''
+            }
                         </div>
                     </div>
                 </div>
             </div>
         `;
-        
+
         uploadResult.classList.remove('hidden');
     }
-    
+
     displayUploadError(result) {
         const uploadResult = document.getElementById('upload-result');
-        
+
         uploadResult.innerHTML = `
             <div class="bg-red-50 border border-red-200 rounded-md p-4">
                 <div class="flex items-start">
@@ -729,20 +706,20 @@ class PathfinderApp {
                         </h3>
                         <div class="mt-2 text-sm text-red-700">
                             <p>${result.detail || 'アップロード処理中にエラーが発生しました'}</p>
-                            ${result.validation_summary && result.validation_summary.errors ? 
-                                `<div class="mt-2">
+                            ${result.validation_summary && result.validation_summary.errors ?
+                `<div class="mt-2">
                                     <p><strong>検証エラー:</strong></p>
                                     <ul class="list-disc list-inside ml-2">
                                         ${result.validation_summary.errors.map(error => `<li>${error}</li>`).join('')}
                                     </ul>
                                 </div>` : ''
-                            }
+            }
                         </div>
                     </div>
                 </div>
             </div>
         `;
-        
+
         uploadResult.classList.remove('hidden');
     }
 }
