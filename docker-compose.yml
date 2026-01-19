@@ -2,8 +2,7 @@ version: '3.8'
 
 services:
   db:
-    image: postgis/postgis:16-3.4
-    platform: linux/arm64
+    image: kartoza/postgis:16-3.4
     volumes:
       - postgres_data:/var/lib/postgresql/data
     environment:
