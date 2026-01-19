@@ -49,6 +49,33 @@ def init_db():
         
         # geom カラムの追加（存在しない場合）
         logger.info("Migrating schema...")
+        
+        # テーブル作成（存在しない場合）
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS timeline_data (
+                id SERIAL PRIMARY KEY,
+                type VARCHAR(50),
+                start_time TIMESTAMP WITH TIME ZONE,
+                end_time TIMESTAMP WITH TIME ZONE,
+                point_time TIMESTAMP WITH TIME ZONE,
+                latitude DOUBLE PRECISION,
+                longitude DOUBLE PRECISION,
+                visit_probability DOUBLE PRECISION,
+                visit_placeid TEXT,
+                visit_semantictype TEXT,
+                activity_distancemeters DOUBLE PRECISION,
+                activity_type TEXT,
+                activity_probability DOUBLE PRECISION,
+                username TEXT,
+                _gpx_data_source TEXT,
+                _gpx_track_name TEXT,
+                _gpx_elevation DOUBLE PRECISION,
+                _gpx_speed DOUBLE PRECISION,
+                _gpx_point_sequence INTEGER,
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+            );
+        """)
+
         cur.execute("""
             DO $$ 
             BEGIN 
@@ -64,6 +91,11 @@ def init_db():
                              WHERE tablename='timeline_data' AND indexname='idx_timeline_geom') THEN
                     CREATE INDEX idx_timeline_geom ON timeline_data USING GIST (geom);
                     RAISE NOTICE 'Created GIST index on geom';
+                END IF;
+                
+                -- 通常のカラムへのインデックス
+                IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname='idx_timeline_username_time') THEN
+                    CREATE INDEX idx_timeline_username_time ON timeline_data (username, start_time DESC);
                 END IF;
             END $$;
         """)
