@@ -104,6 +104,16 @@ async def _save_records_with_copy(records: list) -> int:
         csv_writer = csv.writer(csv_buffer, delimiter='\t')  # TAB区切り
         
         for record in records:
+            # ジオメトリデータの作成 (EWKT形式: SRID=4326;POINT(lng lat))
+            geom = ''
+            if record.get('latitude') and record.get('longitude'):
+                try:
+                    lng = float(record['longitude'])
+                    lat = float(record['latitude'])
+                    geom = f'SRID=4326;POINT({lng} {lat})'
+                except (ValueError, TypeError):
+                    pass
+
             csv_writer.writerow([
                 record.get('type'),
                 record.get('start_time'),
@@ -122,7 +132,8 @@ async def _save_records_with_copy(records: list) -> int:
                 record.get('_gpx_track_name'),
                 record.get('_gpx_elevation'),
                 record.get('_gpx_speed'),
-                record.get('_gpx_point_sequence')
+                record.get('_gpx_point_sequence'),
+                geom # geomカラムを追加
             ])
         
         logger.info("CSV データ準備完了")
@@ -141,7 +152,7 @@ async def _save_records_with_copy(records: list) -> int:
                 visit_probability, visit_placeid, visit_semantictype,
                 activity_distancemeters, activity_type, activity_probability,
                 username, _gpx_data_source, _gpx_track_name, _gpx_elevation,
-                _gpx_speed, _gpx_point_sequence
+                _gpx_speed, _gpx_point_sequence, geom
             ) FROM STDIN WITH (FORMAT csv, DELIMITER E'\t', NULL '')
         """
         
