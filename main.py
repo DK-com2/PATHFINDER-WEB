@@ -19,6 +19,8 @@ from api.developer.routes import router as developer_router
 from api.developer.optimized_routes import router as optimized_developer_router
 from api.developer.simple_export import router as simple_export_router
 
+from utils.database import init_db
+
 load_dotenv()
 
 app = FastAPI(
@@ -26,6 +28,12 @@ app = FastAPI(
     description="Timeline tracking and authentication system",
     version="1.0.0"
 )
+
+@app.on_event("startup")
+async def startup_event():
+    """アプリケーション起動時の処理"""
+    logger.info("Initializing database...")
+    init_db()
 
 app.add_middleware(
     CORSMiddleware,
