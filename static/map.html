@@ -1,15 +1,16 @@
 <!DOCTYPE html>
 <html lang="ja">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
     <meta name="theme-color" content="#3498db">
     <meta name="description" content="Google Timeline データの地図可視化">
     <title>Pathfinder - 地図表示</title>
-    
+
     <!-- Deck.gl CDN -->
     <script src="https://unpkg.com/deck.gl@^8.9.0/dist.min.js"></script>
-    
+
     <style>
         body {
             margin: 0;
@@ -17,29 +18,29 @@
             font-family: 'Helvetica', 'Arial', sans-serif;
             background: #f5f5f5;
         }
-        
+
         #container {
             height: 100vh;
             display: flex;
             flex-direction: column;
         }
-        
+
         #header {
             background: white;
             padding: 10px 15px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
             display: flex;
             justify-content: space-between;
             align-items: center;
             flex-wrap: wrap;
             gap: 10px;
         }
-        
+
         #map {
             flex: 1;
             position: relative;
         }
-        
+
         #info-panel {
             position: absolute;
             top: 10px;
@@ -48,17 +49,17 @@
             background: white;
             padding: 12px;
             border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
             z-index: 1000;
         }
-        
+
         @media (min-width: 640px) {
             #info-panel {
                 left: auto;
                 min-width: 200px;
             }
         }
-        
+
         #tooltip {
             position: absolute;
             background: rgba(0, 0, 0, 0.8);
@@ -70,13 +71,13 @@
             z-index: 1001;
             display: none;
         }
-        
+
         .loading {
             display: flex;
             align-items: center;
             gap: 10px;
         }
-        
+
         .spinner {
             border: 2px solid #f3f3f3;
             border-top: 2px solid #3498db;
@@ -85,30 +86,35 @@
             height: 16px;
             animation: spin 1s linear infinite;
         }
-        
+
         @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
         }
-        
+
         .legend {
             margin-top: 10px;
             font-size: 12px;
         }
-        
+
         .legend-item {
             display: flex;
             align-items: center;
             margin: 3px 0;
         }
-        
+
         .legend-color {
             width: 12px;
             height: 12px;
             border-radius: 50%;
             margin-right: 8px;
         }
-        
+
         .btn {
             background: #3498db;
             color: white;
@@ -122,11 +128,11 @@
             width: 100%;
             margin-bottom: 5px;
         }
-        
+
         .btn:hover {
             background: #2980b9;
         }
-        
+
         @media (min-width: 640px) {
             .btn {
                 width: auto;
@@ -136,15 +142,15 @@
                 padding: 8px 16px;
             }
         }
-        
+
         .btn-secondary {
             background: #95a5a6;
         }
-        
+
         .btn-secondary:hover {
             background: #7f8c8d;
         }
-        
+
         .attribution {
             position: absolute;
             bottom: 10px;
@@ -156,7 +162,7 @@
             color: #666;
             z-index: 1000;
         }
-        
+
         /* 折りたたみ機能 */
         .collapse-btn {
             display: none;
@@ -171,26 +177,26 @@
             width: 100%;
             touch-action: manipulation;
         }
-        
+
         .collapse-btn:hover {
             background: #2980b9;
         }
-        
+
         .panel-content {
             transition: max-height 0.3s ease-out, opacity 0.3s ease-out;
             overflow: hidden;
         }
-        
+
         .panel-collapsed .panel-content {
             max-height: 0;
             opacity: 0;
         }
-        
+
         @media (max-width: 640px) {
             .collapse-btn {
                 display: block;
             }
-            
+
             #info-panel {
                 max-height: 50vh;
                 overflow-y: auto;
@@ -198,6 +204,7 @@
         }
     </style>
 </head>
+
 <body>
     <div id="container">
         <div id="header">
@@ -208,14 +215,14 @@
                 <button class="btn btn-secondary" onclick="goHome()">← ダッシュボードに戻る</button>
             </div>
         </div>
-        
+
         <div id="map">
             <div id="attribution" class="attribution">© OpenStreetMap contributors</div>
             <div id="info-panel">
                 <button class="collapse-btn" onclick="togglePanel()">
                     <span id="toggle-text">▼ 情報パネルを閉じる</span>
                 </button>
-                
+
                 <div class="panel-content" id="panel-content">
                     <div id="user-info">
                         <div class="loading">
@@ -223,18 +230,19 @@
                             <span>ユーザー情報を読み込み中...</span>
                         </div>
                     </div>
-                    
+
                     <div id="data-info" style="margin-top: 15px;">
                         <div class="loading">
                             <div class="spinner"></div>
                             <span>データを読み込み中...</span>
                         </div>
                     </div>
-                    
+
                     <!-- 地図選択 -->
                     <div style="margin-top: 15px;">
                         <label style="font-size: 12px; font-weight: bold; color: #2c3e50;">🗺️ 地図スタイル</label>
-                        <select id="map-style" style="width: 100%; padding: 4px; margin-top: 5px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px;">
+                        <select id="map-style"
+                            style="width: 100%; padding: 4px; margin-top: 5px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px;">
                             <option value="osm">OpenStreetMap (標準)</option>
                             <option value="white">白基調 (クリーン)</option>
                             <option value="satellite">衛星画像</option>
@@ -242,7 +250,7 @@
                     </div>
                 </div>
             </div>
-            
+
             <div id="tooltip"></div>
         </div>
     </div>
@@ -256,24 +264,33 @@
                 this.token = localStorage.getItem('token');
                 this.currentMapStyle = 'osm';
                 this.lastZoom = 10; // 初期ズームレベル
-                
+
                 if (!this.token) {
                     alert('ログインが必要です');
                     window.location.href = '/';
                     return;
                 }
-                
+
                 this.init();
             }
-            
+
             async init() {
                 try {
+                    // Check for URL parameter
+                    const urlParams = new URLSearchParams(window.location.search);
+                    this.targetUser = urlParams.get('user');
+
                     // Deck.glライブラリの確認
                     if (typeof deck === 'undefined') {
                         throw new Error('Deck.gl library not loaded');
                     }
                     console.log('Deck.gl version:', deck.VERSION);
-                    
+
+                    // If viewing another user, title changes
+                    if (this.targetUser) {
+                        document.title = `Pathfinder - ${this.targetUser}の地図`;
+                    }
+
                     await this.loadUserInfo();
                     await this.loadData();
                     this.initMap();
@@ -283,7 +300,7 @@
                     this.showError('初期化に失敗しました: ' + error.message);
                 }
             }
-            
+
             async loadUserInfo() {
                 try {
                     const response = await fetch('/api/auth/profile', {
@@ -291,53 +308,65 @@
                             'Authorization': `Bearer ${this.token}`
                         }
                     });
-                    
+
                     if (!response.ok) {
                         throw new Error('認証に失敗しました');
                     }
-                    
+
                     this.userInfo = await response.json();
+
+                    // Display target user info if specific user requested
+                    if (this.targetUser) {
+                        // We will check mutual follow status indirectly via data load
+                        // But here we can update UI to show we are viewing someone else
+                    }
+
                     this.updateUserInfo();
                 } catch (error) {
                     console.error('Failed to load user info:', error);
                     throw error;
                 }
             }
-            
+
             async loadData() {
                 try {
                     // Loading all data from API
-                    const response = await fetch('/api/map/timeline-points', {
+                    let url = '/api/map/timeline-points';
+                    if (this.targetUser) {
+                        url += `?target_username=${encodeURIComponent(this.targetUser)}`;
+                    }
+
+                    const response = await fetch(url, {
                         headers: {
                             'Authorization': `Bearer ${this.token}`
                         }
                     });
-                    
+
                     if (!response.ok) {
                         console.error('API response error:', response.status, response.statusText);
                         throw new Error('データの取得に失敗しました');
                     }
-                    
+
                     const result = await response.json();
                     // API response received
                     this.data = result.data || [];
                     // Data points loaded
-                    
+
                     if (this.data.length > 0) {
                         // Data available
                     }
-                    
+
                     this.updateDataInfo(result);
-                    
+
                 } catch (error) {
                     console.error('Failed to load data:', error);
                     throw error;
                 }
             }
-            
+
             initMap() {
                 // Initializing map with data
-                
+
                 // 初期視点（日本の中心付近）
                 const initialViewState = {
                     longitude: 139.6917,
@@ -346,7 +375,7 @@
                     pitch: 0,
                     bearing: 0
                 };
-                
+
                 // データがある場合は、データの中心に移動
                 if (this.data.length > 0) {
                     const avgLat = this.data.reduce((sum, d) => sum + d.lat, 0) / this.data.length;
@@ -355,57 +384,57 @@
                     initialViewState.longitude = avgLng;
                     // Center map at calculated position
                 }
-                
+
                 try {
                     // 初期ズームレベルを設定
                     this.currentZoom = initialViewState.zoom;
                     this.lastZoom = initialViewState.zoom;
-                    
+
                     // Deck.glで背景地図も含めて初期化（Leafletは使わない）
                     this.deck = new deck.DeckGL({
                         container: 'map',
                         initialViewState: initialViewState,
                         controller: true,
                         layers: [
-                            this.createTileLayer(), 
-                            this.createTimelineLayer(), 
+                            this.createTileLayer(),
+                            this.createTimelineLayer(),
                             this.createOtherPointsLayer()
                         ],
                         onHover: this.onHover.bind(this),
                         onClick: this.onClick.bind(this),
                         onViewStateChange: this.onViewStateChange.bind(this)
                     });
-                    
+
                     // Deck.GL initialized successfully
-                    
+
                     // 明示的にレイヤーを更新
                     setTimeout(() => {
                         // Updating layers for performance
                         const timelineLayer = this.createTimelineLayer();
                         const otherLayer = this.createOtherPointsLayer();
-                        
+
                         this.deck.setProps({
                             layers: [
-                                this.createTileLayer(), 
-                                timelineLayer, 
+                                this.createTileLayer(),
+                                timelineLayer,
                                 otherLayer
                             ]
                         });
-                        
+
                         // 表示ポイント数を更新
                         this.updatePointCount(timelineLayer.props.data.length + otherLayer.props.data.length);
                     }, 100);
-                    
+
                 } catch (error) {
                     console.error('Failed to initialize map:', error);
                     this.showError('地図の初期化に失敗しました: ' + error.message);
                 }
             }
-            
+
             createTileLayer() {
                 // Deck.glのTileLayerで背景地図を表示
                 let tileUrl;
-                switch(this.currentMapStyle) {
+                switch (this.currentMapStyle) {
                     case 'satellite':
                         tileUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
                         break;
@@ -417,7 +446,7 @@
                         tileUrl = 'https://a.tile.openstreetmap.org/{z}/{x}/{y}.png';
                         break;
                 }
-                
+
                 return new deck.TileLayer({
                     id: 'tile-layer',
                     data: tileUrl,
@@ -426,9 +455,9 @@
                     tileSize: 256,
                     renderSubLayers: props => {
                         const {
-                            bbox: {west, south, east, north}
+                            bbox: { west, south, east, north }
                         } = props.tile;
-                        
+
                         return new deck.BitmapLayer(props, {
                             data: null,
                             image: props.data,
@@ -437,37 +466,37 @@
                     }
                 });
             }
-            
+
             updateMapStyle(style) {
                 this.currentMapStyle = style;
-                
+
                 // 著作権表示を更新
                 this.updateAttribution(style);
-                
+
                 // Deck.glのレイヤーを更新
                 if (this.deck) {
                     const timelineLayer = this.createTimelineLayer();
                     const otherLayer = this.createOtherPointsLayer();
-                    
+
                     this.deck.setProps({
                         layers: [
-                            this.createTileLayer(), 
-                            timelineLayer, 
+                            this.createTileLayer(),
+                            timelineLayer,
                             otherLayer
                         ]
                     });
-                    
+
                     // 表示ポイント数を更新
                     this.updatePointCount(timelineLayer.props.data.length + otherLayer.props.data.length);
-                    
+
                     // Map style updated
                 }
             }
-            
+
             updateAttribution(style) {
                 const attribution = document.getElementById('attribution');
                 if (attribution) {
-                    switch(style) {
+                    switch (style) {
                         case 'satellite':
                             attribution.textContent = '© Esri';
                             break;
@@ -481,7 +510,7 @@
                     }
                 }
             }
-            
+
             setupEventListeners() {
                 // 地図スタイル変更
                 const mapStyleSelect = document.getElementById('map-style');
@@ -491,14 +520,14 @@
                     });
                 }
             }
-            
+
             // 表示ポイント数を更新
             updatePointCount(displayedPoints) {
                 const dataInfoElement = document.getElementById('data-info');
                 if (dataInfoElement && this.data.length > 0) {
                     const totalPoints = this.data.length;
                     const percentage = Math.round((displayedPoints / totalPoints) * 100);
-                    
+
                     dataInfoElement.innerHTML = `
                         <div><strong>📊 データ情報</strong></div>
                         <div>総データ数: ${totalPoints.toLocaleString()}</div>
@@ -529,18 +558,18 @@
                                 <span>パス (path)</span>
                             </div>
                         </div>
-                        ${displayedPoints < totalPoints ? 
+                        ${displayedPoints < totalPoints ?
                             '<div style="font-size: 10px; color: #666; margin-top: 8px;">🔍 拡大すると更多のポイントが表示されます</div>' : ''
                         }
                     `;
                 }
             }
-            
+
             // シンプルなデータ間引き関数
             filterDataByZoom(data, zoom) {
                 // データが少ない場合はそのまま表示
                 if (data.length <= 3000) return data;
-                
+
                 // ズームレベルに応じてきめ細かく間引き
                 let percentage;
                 if (zoom <= 8) {
@@ -558,26 +587,26 @@
                 } else {
                     return data; // 全て表示
                 }
-                
+
                 const maxPoints = Math.floor(data.length * percentage);
                 const step = Math.floor(data.length / maxPoints);
                 const result = data.filter((_, index) => index % step === 0);
-                
-                console.log(`Zoom: ${zoom.toFixed(1)}, Showing: ${result.length}/${data.length} (${Math.round((result.length/data.length)*100)}%)`);
-                
+
+                console.log(`Zoom: ${zoom.toFixed(1)}, Showing: ${result.length}/${data.length} (${Math.round((result.length / data.length) * 100)}%)`);
+
                 return result;
             }
-            
+
             createTimelineLayer() {
                 // timelineとtimelinePathのみをフィルタリング
-                let timelineData = this.data.filter(d => 
+                let timelineData = this.data.filter(d =>
                     d.type === 'timeline' || d.type === 'timelinePath'
                 );
-                
+
                 // ズームレベルに応じてデータを間引き（currentZoomを使用）
                 const zoom = this.currentZoom || this.lastZoom || 10;
                 timelineData = this.filterDataByZoom(timelineData, zoom);
-                
+
                 // Creating Timeline Layer
 
                 return new deck.ScatterplotLayer({
@@ -605,17 +634,17 @@
                     }
                 });
             }
-            
+
             createOtherPointsLayer() {
                 // timeline以外のポイントをフィルタリング
-                let otherData = this.data.filter(d => 
+                let otherData = this.data.filter(d =>
                     d.type !== 'timeline' && d.type !== 'timelinePath'
                 );
-                
+
                 // ズームレベルに応じてデータを間引き（currentZoomを使用）
                 const zoom = this.currentZoom || this.lastZoom || 10;
                 otherData = this.filterDataByZoom(otherData, zoom);
-                
+
                 // Creating Other Points Layer
 
                 return new deck.ScatterplotLayer({
@@ -643,14 +672,14 @@
                     }
                 });
             }
-            
+
             getPointRadiusByType(type) {
                 // 現在のズームレベルを取得
                 const zoom = this.deck?.viewState?.zoom || 10;
-                
+
                 // タイプごとにサイズ調整
                 const isTimeline = type === 'timeline' || type === 'timelinePath';
-                
+
                 // ズームレベルに応じてポイントサイズを調整
                 let baseRadius;
                 if (zoom <= 8) {
@@ -662,10 +691,10 @@
                 } else {
                     baseRadius = isTimeline ? 8 : 6; // timeline以外は小さく
                 }
-                
+
                 return baseRadius;
             }
-            
+
             getColorByType(type) {
                 // console.log removed for performance
                 switch (type) {
@@ -689,29 +718,29 @@
                         return [255, 165, 0, 255]; // オレンジ（未知のタイプ）
                 }
             }
-            
+
             onHover(info) {
                 const tooltip = document.getElementById('tooltip');
-                
+
                 if (info.object) {
                     const obj = info.object;
                     const date = new Date(obj.time).toLocaleDateString('ja-JP');
                     const time = new Date(obj.time).toLocaleTimeString('ja-JP');
-                    
+
                     let content = `
                         <div><strong>タイプ:</strong> ${obj.type}</div>
                         <div><strong>日時:</strong> ${date} ${time}</div>
                         <div><strong>座標:</strong> ${obj.lat.toFixed(4)}, ${obj.lng.toFixed(4)}</div>
                     `;
-                    
+
                     if (obj.semantic) {
                         content += `<div><strong>場所:</strong> ${obj.semantic}</div>`;
                     }
-                    
+
                     if (obj.activity) {
                         content += `<div><strong>活動:</strong> ${obj.activity}</div>`;
                     }
-                    
+
                     tooltip.innerHTML = content;
                     tooltip.style.display = 'block';
                     tooltip.style.left = info.x + 'px';
@@ -720,66 +749,77 @@
                     tooltip.style.display = 'none';
                 }
             }
-            
+
             onClick(info) {
                 if (info.object) {
                     console.log('Clicked object:', info.object);
                 }
             }
-            
-            onViewStateChange({viewState}) {
+
+            onViewStateChange({ viewState }) {
                 // 現在のズームレベルを保存（小数点も含む）
                 this.currentZoom = viewState.zoom;
-                
+
                 // ズームレベルが変わったときにレイヤーを更新
                 const currentZoom = Math.round(viewState.zoom);
                 const prevZoom = this.lastZoom || currentZoom;
-                
+
                 if (Math.abs(currentZoom - prevZoom) >= 0.5) { // ズームレベルが0.5以上変わった時に更新
                     this.lastZoom = currentZoom;
-                    
+
                     // デバウンス処理 - 既存のタイマーをクリア
                     if (this.updateTimer) {
                         clearTimeout(this.updateTimer);
                     }
-                    
+
                     // 大量データの場合、更新を少し遅延させてパフォーマンス向上
                     const delay = this.data.length > 50000 ? 300 : 150; // 遅延を調整
-                    
+
                     // ポイントサイズを更新するためにレイヤーを再作成
                     this.updateTimer = setTimeout(() => {
                         if (this.deck) {
                             const timelineLayer = this.createTimelineLayer();
                             const otherLayer = this.createOtherPointsLayer();
-                            
+
                             this.deck.setProps({
                                 layers: [
-                                    this.createTileLayer(), 
-                                    timelineLayer, 
+                                    this.createTileLayer(),
+                                    timelineLayer,
                                     otherLayer
                                 ]
                             });
-                            
+
                             // 表示ポイント数を更新
                             this.updatePointCount(timelineLayer.props.data.length + otherLayer.props.data.length);
                         }
                     }, delay);
                 }
-                
+
                 return viewState;
             }
-            
+
             updateUserInfo() {
                 const userInfoEl = document.getElementById('user-info');
+
+                let displayUser = this.userInfo.username || 'ユーザー名未設定';
+                let displayEmail = this.userInfo.email;
+                let prefix = '👤';
+
+                if (this.targetUser) {
+                    displayUser = this.targetUser;
+                    displayEmail = 'Viewing Friend\'s Map';
+                    prefix = '🤝';
+                }
+
                 userInfoEl.innerHTML = `
-                    <div style="font-weight: bold; color: #2c3e50;">👤 ${this.userInfo.username || 'ユーザー名未設定'}</div>
-                    <div style="font-size: 12px; color: #7f8c8d;">${this.userInfo.email}</div>
+                    <div style="font-weight: bold; color: #2c3e50;">${prefix} ${displayUser}</div>
+                    <div style="font-size: 12px; color: #7f8c8d;">${displayEmail}</div>
                 `;
             }
-            
+
             updateDataInfo(result) {
                 const dataInfoEl = document.getElementById('data-info');
-                
+
                 if (result.total === 0) {
                     dataInfoEl.innerHTML = `
                         <div style="color: #e67e22;">📊 データなし</div>
@@ -792,7 +832,7 @@
                     `;
                 }
             }
-            
+
             showError(message) {
                 const dataInfoEl = document.getElementById('data-info');
                 dataInfoEl.innerHTML = `
@@ -801,16 +841,16 @@
                 `;
             }
         }
-        
+
         function goHome() {
             window.location.href = '/';
         }
-        
+
         // パネル折りたたみ機能
         function togglePanel() {
             const panel = document.getElementById('info-panel');
             const toggleText = document.getElementById('toggle-text');
-            
+
             if (panel.classList.contains('panel-collapsed')) {
                 // 展開
                 panel.classList.remove('panel-collapsed');
@@ -821,11 +861,12 @@
                 toggleText.textContent = '▶ 情報パネルを開く';
             }
         }
-        
+
         // アプリケーション起動
         document.addEventListener('DOMContentLoaded', () => {
             new PathfinderMap();
         });
     </script>
 </body>
+
 </html>

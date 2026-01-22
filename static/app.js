@@ -1,11 +1,11 @@
 class PathfinderApp {
-    constructor() {
+    constructor(options = {}) {
         this.token = localStorage.getItem('token');
         this.user = null;
         this.currentPage = 'login';
         this.timelineData = [];
         this.summary = null;
-
+        this.options = options; // Store options
         this.init();
     }
 
@@ -14,12 +14,18 @@ class PathfinderApp {
             const isValid = await this.verifyToken();
             if (isValid) {
                 await this.loadUserProfile();
-                this.showDashboard();
+                if (!this.options.noRender) {
+                    this.showDashboard();
+                }
             } else {
-                this.showLogin();
+                if (!this.options.noRender) {
+                    this.showLogin();
+                }
             }
         } else {
-            this.showLogin();
+            if (!this.options.noRender) {
+                this.showLogin();
+            }
         }
     }
 
@@ -259,6 +265,9 @@ class PathfinderApp {
                                 <h1 class="text-lg sm:text-xl font-semibold text-gray-900">
                                     🌐 Pathfinder Web
                                 </h1>
+                                <a href="/static/users.html" class="ml-6 text-sm font-medium text-gray-500 hover:text-gray-900">
+                                    👥 ユーザーを探す
+                                </a>
                             </div>
                             
                             <div class="flex items-center space-x-2 sm:space-x-4">
@@ -724,7 +733,5 @@ class PathfinderApp {
     }
 }
 
-// アプリケーションを起動
-document.addEventListener('DOMContentLoaded', () => {
-    new PathfinderApp();
-});
+// Export the class for use in other files if needed (though global scope works for simple apps)
+// window.PathfinderApp = PathfinderApp;

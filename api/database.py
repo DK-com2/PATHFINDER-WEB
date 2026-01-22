@@ -19,7 +19,8 @@ logger = logging.getLogger(__name__)
 async def get_timeline_data(
     current_user: dict = Depends(get_current_user),
     limit: Optional[int] = 1000,
-    offset: Optional[int] = 0
+    offset: Optional[int] = 0,
+    target_username: Optional[str] = None
 ):
     """認証されたユーザーのタイムラインデータを取得"""
     try:
@@ -35,7 +36,30 @@ async def get_timeline_data(
         if not username_response.data:
             return {"message": "Username not set. Please set your username first.", "data": []}
         
-        username = username_response.data[0]["username"]
+        current_username = username_response.data[0]["username"]
+        
+        # Determine target username
+        if target_username and target_username != current_username:
+             # Check for mutual follow
+             conn = get_db_connection()
+             cur = conn.cursor()
+             
+             # Check A follows B
+             cur.execute("SELECT 1 FROM follows WHERE follower_username = %s AND followed_username = %s", (current_username, target_username))
+             following = cur.fetchone() is not None
+             
+             # Check B follows A
+             cur.execute("SELECT 1 FROM follows WHERE follower_username = %s AND followed_username = %s", (target_username, current_username))
+             followed_by = cur.fetchone() is not None
+             
+             cur.close()
+             
+             if not (following and followed_by):
+                 raise HTTPException(status_code=403, detail="Mutual follow required to view this user's data")
+                 
+             username = target_username
+        else:
+             username = current_username
         
         # Get timeline data from PostgreSQL
         conn = get_db_connection()
@@ -86,7 +110,10 @@ async def get_timeline_data(
         raise HTTPException(status_code=500, detail=f"Failed to get timeline data: {str(e)}")
 
 @router.get("/summary")
-async def get_timeline_summary(current_user: dict = Depends(get_current_user)):
+async def get_timeline_summary(
+    target_username: Optional[str] = None,
+    current_user: dict = Depends(get_current_user)
+):
     """認証されたユーザーのタイムラインデータサマリーを取得"""
     try:
         # Get username from Supabase
@@ -101,7 +128,31 @@ async def get_timeline_summary(current_user: dict = Depends(get_current_user)):
         if not username_response.data:
             return {"message": "Username not set. Please set your username first.", "summary": {}}
         
-        username = username_response.data[0]["username"]
+        current_username = username_response.data[0]["username"]
+        
+        # Determine target username
+        if target_username and target_username != current_username:
+             # Check for mutual follow
+             conn = get_db_connection()
+             cur = conn.cursor()
+             
+             # Check A follows B
+             cur.execute("SELECT 1 FROM follows WHERE follower_username = %s AND followed_username = %s", (current_username, target_username))
+             following = cur.fetchone() is not None
+             
+             # Check B follows A
+             cur.execute("SELECT 1 FROM follows WHERE follower_username = %s AND followed_username = %s", (target_username, current_username))
+             followed_by = cur.fetchone() is not None
+             
+             cur.close()
+             conn.close()
+             
+             if not (following and followed_by):
+                 raise HTTPException(status_code=403, detail="Mutual follow required to view this user's data")
+                 
+             username = target_username
+        else:
+             username = current_username
         
         # Get summary data from PostgreSQL
         conn = get_db_connection()

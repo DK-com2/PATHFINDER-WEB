@@ -18,6 +18,7 @@ from api.timeline.fast_upload import router as timeline_fast_upload_router
 from api.developer.routes import router as developer_router
 from api.developer.optimized_routes import router as optimized_developer_router
 from api.developer.simple_export import router as simple_export_router
+from api.social import router as social_router
 
 from utils.database import init_db
 
@@ -53,6 +54,7 @@ app.include_router(timeline_fast_upload_router, prefix="/api/timeline", tags=["t
 app.include_router(developer_router, prefix="/api/developer", tags=["developer-tools"])
 app.include_router(optimized_developer_router, prefix="/api/developer", tags=["optimized-tools"])
 app.include_router(simple_export_router, prefix="/api/developer/simple_export", tags=["simple-export"])
+app.include_router(social_router, prefix="/api/social", tags=["social"])
 
 @app.get("/")
 async def serve_spa():

@@ -76,6 +76,16 @@ def init_db():
             );
         """)
 
+        # フォローテーブル作成（存在しない場合）
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS follows (
+                follower_username TEXT NOT NULL,
+                followed_username TEXT NOT NULL,
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (follower_username, followed_username)
+            );
+        """)
+
         cur.execute("""
             DO $$ 
             BEGIN 

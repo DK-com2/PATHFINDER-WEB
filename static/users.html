@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <title>ユーザー検索 - Pathfinder Web</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .fade-in {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+
+<body class="bg-gray-50 min-h-screen">
+    <div id="app">
+        <!-- Navigation -->
+        <nav class="bg-white shadow-lg mb-6">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between h-16">
+                    <div class="flex items-center">
+                        <a href="/" class="text-xl font-semibold text-gray-900">🌐 Pathfinder Web</a>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <main class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+            <!-- Toggle Tabs -->
+            <div class="flex space-x-1 bg-white p-1 rounded-lg border border-gray-200 mb-6">
+                <button id="tab-search"
+                    class="flex-1 py-1 px-3 rounded-md text-sm font-medium bg-gray-100 text-gray-900 shadow-sm focus:outline-none">
+                    ユーザー検索
+                </button>
+                <button id="tab-following"
+                    class="flex-1 py-1 px-3 rounded-md text-sm font-medium text-gray-500 hover:text-gray-900 focus:outline-none">
+                    フォロー中
+                </button>
+            </div>
+
+            <!-- Search Section -->
+            <div id="search-section" class="bg-white shadow rounded-lg p-6 mb-6">
+                <h2 class="text-lg font-medium text-gray-900 mb-4">ユーザーを探す</h2>
+                <div class="flex space-x-2">
+                    <input type="text" id="search-input" placeholder="ユーザー名を入力..."
+                        class="flex-1 border-gray-300 border rounded-md px-4 py-2 focus:ring-indigo-500 focus:border-indigo-500">
+                    <button id="search-btn" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700">
+                        検索
+                    </button>
+                </div>
+                <div id="search-results" class="mt-4 space-y-2"></div>
+            </div>
+
+            <!-- Following Section (Hidden Init) -->
+            <div id="following-section" class="bg-white shadow rounded-lg p-6 mb-6 hidden">
+                <h2 class="text-lg font-medium text-gray-900 mb-4">フォロー中のユーザー</h2>
+                <div id="following-list" class="space-y-2">
+                    <p class="text-sm text-gray-500">読み込み中...</p>
+                </div>
+            </div>
+
+            <!-- Profile View Section (Hidden by default) -->
+            <div id="profile-view" class="bg-white shadow rounded-lg p-6 hidden fade-in">
+                <div class="flex justify-between items-start mb-6">
+                    <div>
+                        <h2 id="profile-username" class="text-2xl font-bold text-gray-900"></h2>
+                        <div class="mt-2 flex items-center space-x-2">
+                            <span id="follow-status-badge"
+                                class="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
+                                未フォロー
+                            </span>
+                        </div>
+                    </div>
+                    <button id="action-btn" class="px-4 py-2 rounded-md text-sm font-medium transition-colors">
+                        読み込み中...
+                    </button>
+                </div>
+
+                <!-- Protected Content -->
+                <div id="protected-content" class="hidden">
+                    <div class="bg-green-50 border border-green-200 rounded-md p-4 mb-4">
+                        <div class="flex">
+                            <div class="flex-shrink-0">
+                                🔓
+                            </div>
+                            <div class="ml-3">
+                                <h3 class="text-sm font-medium text-green-800">相互フォロー中</h3>
+                                <div class="mt-2 text-sm text-green-700">
+                                    <p>詳細データを閲覧できます。</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="user-stats" class="grid grid-cols-2 gap-4 mb-4">
+                        <!-- Filled by JS -->
+                    </div>
+
+                    <a id="view-map-btn" href="#"
+                        class="block w-full text-center bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
+                        🗺️ 地図を見る
+                    </a>
+                </div>
+
+                <!-- Locked Content -->
+                <div id="locked-content"
+                    class="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                    <span class="text-4xl block mb-2">🔒</span>
+                    <h3 class="text-lg font-medium text-gray-900">データは非公開です</h3>
+                    <p class="text-gray-500 mt-1">詳細を見るには相互フォロー（Friends）になる必要があります。</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Same app logic as main app but simplified for this page -->
+    <script src="/static/app.js?v=3"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Check auth immediately
+            const token = localStorage.getItem('token');
+            if (!token) {
+                alert('ログインが必要です');
+                window.location.href = '/';
+                return;
+            }
+
+            const app = new PathfinderApp({ noRender: true }); // Reuse existing auth logic
+
+            const searchBtn = document.getElementById('search-btn');
+            const searchInput = document.getElementById('search-input');
+            const resultsDiv = document.getElementById('search-results');
+
+            // Tabs
+            const tabSearch = document.getElementById('tab-search');
+            const tabFollowing = document.getElementById('tab-following');
+            const searchSection = document.getElementById('search-section');
+            const followingSection = document.getElementById('following-section');
+            const followingList = document.getElementById('following-list');
+
+            tabSearch.addEventListener('click', () => {
+                switchTab('search');
+            });
+
+            tabFollowing.addEventListener('click', () => {
+                switchTab('following');
+                loadFollowing();
+            });
+
+            function switchTab(mode) {
+                if (mode === 'search') {
+                    tabSearch.className = 'flex-1 py-1 px-3 rounded-md text-sm font-medium bg-gray-100 text-gray-900 shadow-sm focus:outline-none';
+                    tabFollowing.className = 'flex-1 py-1 px-3 rounded-md text-sm font-medium text-gray-500 hover:text-gray-900 focus:outline-none';
+                    searchSection.classList.remove('hidden');
+                    followingSection.classList.add('hidden');
+                } else {
+                    tabSearch.className = 'flex-1 py-1 px-3 rounded-md text-sm font-medium text-gray-500 hover:text-gray-900 focus:outline-none';
+                    tabFollowing.className = 'flex-1 py-1 px-3 rounded-md text-sm font-medium bg-gray-100 text-gray-900 shadow-sm focus:outline-none';
+                    searchSection.classList.add('hidden');
+                    followingSection.classList.remove('hidden');
+                    // Reset profile view when switching tabs if needed, but keeping it might be fine
+                    document.getElementById('profile-view').classList.add('hidden');
+                }
+            }
+
+            async function loadFollowing() {
+                followingList.innerHTML = '<p class="text-sm text-gray-500">読み込み中...</p>';
+                try {
+                    const res = await app.makeRequest('/api/social/following');
+                    if (res.users.length === 0) {
+                        followingList.innerHTML = '<p class="text-sm text-gray-500">フォローしているユーザーはいません</p>';
+                        return;
+                    }
+
+                    followingList.innerHTML = '';
+                    res.users.forEach(user => {
+                        const div = document.createElement('div');
+                        div.className = 'flex justify-between items-center p-3 hover:bg-gray-50 rounded-lg border border-gray-100 cursor-pointer';
+
+                        let badge = '';
+                        if (user.mutual) {
+                            badge = '<span class="ml-2 px-2 py-0.5 text-xs font-semibold rounded-full bg-green-100 text-green-800">🤝 Friends</span>';
+                        }
+
+                        div.innerHTML = `<span class="font-medium flex items-center">${user.username}${badge}</span>
+                                         <span class="text-xs text-blue-600 hover:underline">詳細を見る →</span>`;
+                        div.onclick = () => loadProfile(user.username);
+                        followingList.appendChild(div);
+                    });
+
+                } catch (e) {
+                    followingList.innerHTML = '<p class="text-sm text-red-500">一覧の取得に失敗しました</p>';
+                }
+            }
+
+            searchBtn.addEventListener('click', async () => {
+                const query = searchInput.value.trim();
+                if (!query) return;
+
+                try {
+                    const res = await app.makeRequest(`/api/social/search?q=${encodeURIComponent(query)}`);
+                    displayResults(res.users);
+                } catch (e) {
+                    alert('検索に失敗しました');
+                }
+            });
+
+            function displayResults(users) {
+                resultsDiv.innerHTML = '';
+                if (users.length === 0) {
+                    resultsDiv.innerHTML = '<p class="text-sm text-gray-500">ユーザーが見つかりませんでした</p>';
+                    return;
+                }
+
+                users.forEach(user => {
+                    const div = document.createElement('div');
+                    div.className = 'flex justify-between items-center p-3 hover:bg-gray-50 rounded-lg border border-gray-100 cursor-pointer';
+                    div.innerHTML = `<span class="font-medium">${user.username}</span>`;
+                    div.onclick = () => loadProfile(user.username);
+                    resultsDiv.appendChild(div);
+                });
+            }
+
+            async function loadProfile(username) {
+                document.getElementById('profile-view').classList.remove('hidden');
+                document.getElementById('profile-username').textContent = username;
+                document.getElementById('protected-content').classList.add('hidden');
+                document.getElementById('locked-content').classList.remove('hidden');
+
+                // Get Follow Status
+                try {
+                    const status = await app.makeRequest(`/api/social/status/${username}`);
+                    updateAction(username, status);
+
+                    if (status.mutual) {
+                        loadProtectedData(username);
+                    }
+                } catch (e) {
+                    console.error(e);
+                }
+            }
+
+            function updateAction(username, status) {
+                const btn = document.getElementById('action-btn');
+                const badge = document.getElementById('follow-status-badge');
+
+                // Remove old listeners
+                const newBtn = btn.cloneNode(true);
+                btn.parentNode.replaceChild(newBtn, btn);
+                const actionBtn = document.getElementById('action-btn');
+
+                if (status.mutual) {
+                    badge.textContent = '🤝 Friends';
+                    badge.className = 'px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800';
+                } else if (status.following) {
+                    badge.textContent = '➡️ フォロー中';
+                    badge.className = 'px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800';
+                } else if (status.followed_by) {
+                    badge.textContent = '⬅️ フォローされています';
+                    badge.className = 'px-2 py-1 text-xs font-semibold rounded-full bg-orange-100 text-orange-800';
+                } else {
+                    badge.textContent = '未フォロー';
+                    badge.className = 'px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800';
+                }
+
+                if (status.following) {
+                    actionBtn.textContent = 'フォロー解除';
+                    actionBtn.className = 'px-4 py-2 rounded-md text-sm font-medium bg-red-100 text-red-700 hover:bg-red-200';
+                    actionBtn.onclick = async () => {
+                        await app.makeRequest(`/api/social/unfollow/${username}`, { method: 'POST' });
+                        loadProfile(username); // Reload
+                    };
+                } else {
+                    actionBtn.textContent = 'フォローする';
+                    actionBtn.className = 'px-4 py-2 rounded-md text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-700';
+                    actionBtn.onclick = async () => {
+                        await app.makeRequest(`/api/social/follow/${username}`, { method: 'POST' });
+                        loadProfile(username); // Reload
+                    };
+                }
+            }
+
+            async function loadProtectedData(username) {
+                document.getElementById('locked-content').classList.add('hidden');
+                document.getElementById('protected-content').classList.remove('hidden');
+
+                // Set map link
+                document.getElementById('view-map-btn').href = `/static/map.html?user=${username}`;
+
+                // Load stats
+                try {
+                    const res = await app.makeRequest(`/api/timeline/summary?target_username=${username}`);
+                    const summary = res.summary;
+                    document.getElementById('user-stats').innerHTML = `
+                        <div class="bg-gray-50 p-3 rounded">
+                            <div class="text-xs text-gray-500">総レコード</div>
+                            <div class="text-lg font-bold">${summary.total_records}</div>
+                        </div>
+                        <div class="bg-gray-50 p-3 rounded">
+                            <div class="text-xs text-gray-500">データ期間</div>
+                            <div class="text-xs font-medium truncate">${summary.date_range?.start?.split('T')[0] || '-'}</div>
+                        </div>
+                    `;
+                } catch (e) {
+                    console.error(e);
+                }
+            }
+        });
+    </script>
+</body>
+
+</html>
