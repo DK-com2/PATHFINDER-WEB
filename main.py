@@ -1,8 +1,11 @@
+
+from dotenv import load_dotenv
+load_dotenv()
+
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
-from dotenv import load_dotenv
 import os
 import logging
 
@@ -65,6 +68,24 @@ async def serve_spa_routes(full_path: str):
     if full_path.startswith("api/"):
         return {"detail": "API endpoint not found"}
     return FileResponse("static/index.html")
+
+
+@app.get("/api/health_check")
+async def health_check():
+    """データベース接続チェック用エンドポイント"""
+    try:
+        from utils.database import test_db_connection
+        if test_db_connection():
+            return {"status": "ok", "message": "Database successfully connected"}
+        else:
+            raise HTTPException(status_code=500, detail="Database connection test returned False")
+    except Exception as e:
+        logger.error(f"Health check failed: {e}")
+        return {
+            "status": "error",
+            "message": str(e),
+            "detail": f"Type: {type(e).__name__}"
+        }
 
 if __name__ == "__main__":
     import uvicorn

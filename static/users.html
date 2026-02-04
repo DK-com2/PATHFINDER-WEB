@@ -202,7 +202,13 @@
                     });
 
                 } catch (e) {
-                    followingList.innerHTML = '<p class="text-sm text-red-500">一覧の取得に失敗しました</p>';
+                    // 詳細なエラーメッセージを表示
+                    console.error(e);
+                    const errorMsg = e.message || (typeof e === 'string' ? e : 'Unknown error');
+                    followingList.innerHTML = `<div class="bg-red-50 p-4 rounded text-sm text-red-700">
+                        <p class="font-bold">一覧の取得に失敗しました</p>
+                        <p class="mt-1 font-mono text-xs break-all">${errorMsg}</p>
+                    </div>`;
                 }
             }
 
@@ -214,7 +220,8 @@
                     const res = await app.makeRequest(`/api/social/search?q=${encodeURIComponent(query)}`);
                     displayResults(res.users);
                 } catch (e) {
-                    alert('検索に失敗しました');
+                    console.error(e);
+                    alert('検索に失敗しました: ' + (e.message || e));
                 }
             });
 
