@@ -11,6 +11,10 @@
     <!-- Deck.gl CDN -->
     <script src="https://unpkg.com/deck.gl@^8.9.0/dist.min.js"></script>
 
+    <!-- noUiSlider CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.0/nouislider.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.0/nouislider.min.js"></script>
+
     <style>
         body {
             margin: 0;
@@ -192,6 +196,80 @@
             opacity: 0;
         }
 
+        /* Time Filter Styles */
+        #time-filter-container {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+        }
+
+        .filter-header {
+            font-size: 12px;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        #date-range-display {
+            font-size: 11px;
+            color: #3498db;
+            font-weight: bold;
+        }
+
+        #time-slider {
+            height: 10px;
+            margin: 0 10px 15px 10px;
+        }
+
+        .noUi-connect {
+            background: #3498db;
+        }
+
+        .noUi-handle {
+            height: 18px !important;
+            width: 18px !important;
+            top: -5px !important;
+            right: -9px !important;
+            border-radius: 50%;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            cursor: pointer;
+        }
+
+        .noUi-handle:before, .noUi-handle:after {
+            display: none;
+        }
+
+        .preset-buttons {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 10px;
+        }
+
+        .preset-btn {
+            flex: 1;
+            padding: 4px;
+            font-size: 10px;
+            background: #f0f0f0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+            color: #555;
+            transition: all 0.2s;
+        }
+
+        .preset-btn:hover {
+            background: #e0e0e0;
+        }
+
+        .preset-btn.active {
+            background: #3498db;
+            color: white;
+            border-color: #2980b9;
+        }
+
         @media (max-width: 640px) {
             .collapse-btn {
                 display: block;
@@ -238,6 +316,22 @@
                         </div>
                     </div>
 
+                    <!-- Time Filter -->
+                    <div id="time-filter-container" style="display: none;">
+                        <div class="filter-header">
+                            <span>📅 期間指定</span>
+                            <span id="date-range-display">全期間</span>
+                        </div>
+
+                        <div class="preset-buttons">
+                            <button class="preset-btn active" data-range="all">全期間</button>
+                            <button class="preset-btn" data-range="year">今年</button>
+                            <button class="preset-btn" data-range="month">直近1ヶ月</button>
+                        </div>
+
+                        <div id="time-slider"></div>
+                    </div>
+
                     <!-- 地図選択 -->
                     <div style="margin-top: 15px;">
                         <label style="font-size: 12px; font-weight: bold; color: #2c3e50;">🗺️ 地図スタイル</label>
@@ -260,6 +354,9 @@
             constructor() {
                 this.deck = null;
                 this.data = [];
+                this.filteredData = []; // フィルタリング後のデータ
+                this.minDate = null;
+                this.maxDate = null;
                 this.userInfo = null;
                 this.token = localStorage.getItem('token');
                 this.currentMapStyle = 'osm';
@@ -349,11 +446,31 @@
 
                     const result = await response.json();
                     // API response received
-                    this.data = result.data || [];
+
+                    // タイムスタンプの事前計算とデータセット
+                    this.data = (result.data || []).map(d => {
+                        d.timestamp = new Date(d.time).getTime();
+                        return d;
+                    });
+
+                    // 初期状態では全データ表示
+                    this.filteredData = [...this.data];
+
                     // Data points loaded
 
                     if (this.data.length > 0) {
-                        // Data available
+                        // 最小・最大日時の計算
+                        let min = Infinity;
+                        let max = -Infinity;
+                        for (const d of this.data) {
+                            if (d.timestamp < min) min = d.timestamp;
+                            if (d.timestamp > max) max = d.timestamp;
+                        }
+                        this.minDate = min;
+                        this.maxDate = max;
+
+                        // スライダーのセットアップ
+                        this.setupTimeFilter();
                     }
 
                     this.updateDataInfo(result);
@@ -521,17 +638,115 @@
                 }
             }
 
+            setupTimeFilter() {
+                const slider = document.getElementById('time-slider');
+                const container = document.getElementById('time-filter-container');
+
+                if (!slider || !this.minDate || !this.maxDate) return;
+
+                container.style.display = 'block';
+
+                // Check if slider already initialized
+                if (slider.noUiSlider) {
+                    slider.noUiSlider.destroy();
+                }
+
+                noUiSlider.create(slider, {
+                    start: [this.minDate, this.maxDate],
+                    connect: true,
+                    range: {
+                        'min': this.minDate,
+                        'max': this.maxDate
+                    },
+                    step: 24 * 60 * 60 * 1000, // 1 day step
+                    format: {
+                        to: value => value,
+                        from: value => value
+                    }
+                });
+
+                // 初期表示更新
+                this.updateDateDisplay(this.minDate, this.maxDate);
+
+                // Event: Update text while dragging
+                slider.noUiSlider.on('update', (values) => {
+                    this.updateDateDisplay(values[0], values[1]);
+                });
+
+                // Event: Update map when drag ends (パフォーマンスのため)
+                slider.noUiSlider.on('set', (values) => {
+                    this.applyTimeFilter(parseFloat(values[0]), parseFloat(values[1]));
+                });
+
+                // Preset Buttons
+                document.querySelectorAll('.preset-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        // Remove active class
+                        document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+                        e.target.classList.add('active');
+
+                        const range = e.target.dataset.range;
+                        let start = this.minDate;
+                        let end = this.maxDate;
+
+                        const now = new Date().getTime();
+
+                        if (range === 'month') {
+                            const oneMonthAgo = new Date();
+                            oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+                            start = Math.max(this.minDate, oneMonthAgo.getTime());
+                        } else if (range === 'year') {
+                            const startOfYear = new Date(new Date().getFullYear(), 0, 1).getTime();
+                            start = Math.max(this.minDate, startOfYear);
+                        }
+
+                        slider.noUiSlider.set([start, end]);
+                        this.applyTimeFilter(start, end);
+                    });
+                });
+            }
+
+            updateDateDisplay(start, end) {
+                const startDate = new Date(parseInt(start)).toLocaleDateString('ja-JP');
+                const endDate = new Date(parseInt(end)).toLocaleDateString('ja-JP');
+                document.getElementById('date-range-display').textContent = `${startDate} - ${endDate}`;
+            }
+
+            applyTimeFilter(start, end) {
+                this.filteredData = this.data.filter(d => d.timestamp >= start && d.timestamp <= end);
+
+                // Deck.glのレイヤーを更新
+                if (this.deck) {
+                    const timelineLayer = this.createTimelineLayer();
+                    const otherLayer = this.createOtherPointsLayer();
+
+                    this.deck.setProps({
+                        layers: [
+                            this.createTileLayer(),
+                            timelineLayer,
+                            otherLayer
+                        ]
+                    });
+
+                    // 表示ポイント数を更新
+                    this.updatePointCount(timelineLayer.props.data.length + otherLayer.props.data.length);
+                }
+            }
+
             // 表示ポイント数を更新
             updatePointCount(displayedPoints) {
                 const dataInfoElement = document.getElementById('data-info');
                 if (dataInfoElement && this.data.length > 0) {
                     const totalPoints = this.data.length;
-                    const percentage = Math.round((displayedPoints / totalPoints) * 100);
+                    const filteredTotal = this.filteredData.length;
+                    const percentage = filteredTotal > 0 ? Math.round((displayedPoints / filteredTotal) * 100) : 0;
+                    const filterPercentage = totalPoints > 0 ? Math.round((filteredTotal / totalPoints) * 100) : 0;
 
                     dataInfoElement.innerHTML = `
                         <div><strong>📊 データ情報</strong></div>
                         <div>総データ数: ${totalPoints.toLocaleString()}</div>
-                        <div>表示中: ${displayedPoints.toLocaleString()} (${percentage}%)</div>
+                        <div>期間絞込: ${filteredTotal.toLocaleString()} (${filterPercentage}%)</div>
+                        <div>表示中: ${displayedPoints.toLocaleString()} (ズーム: ${percentage}%)</div>
                         <div class="legend">
                             <div class="legend-item">
                                 <div class="legend-color" style="background: #e74c3c;"></div>
@@ -598,8 +813,8 @@
             }
 
             createTimelineLayer() {
-                // timelineとtimelinePathのみをフィルタリング
-                let timelineData = this.data.filter(d =>
+                // timelineとtimelinePathのみをフィルタリング（filteredDataを使用）
+                let timelineData = this.filteredData.filter(d =>
                     d.type === 'timeline' || d.type === 'timelinePath'
                 );
 
@@ -636,8 +851,8 @@
             }
 
             createOtherPointsLayer() {
-                // timeline以外のポイントをフィルタリング
-                let otherData = this.data.filter(d =>
+                // timeline以外のポイントをフィルタリング（filteredDataを使用）
+                let otherData = this.filteredData.filter(d =>
                     d.type !== 'timeline' && d.type !== 'timelinePath'
                 );
 
