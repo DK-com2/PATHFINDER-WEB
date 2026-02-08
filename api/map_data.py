@@ -1,9 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends
 from typing import Optional
 import logging
-import os
-from datetime import datetime
-from supabase import create_client
 
 from api.auth import get_current_user
 from utils.database import get_db_connection
@@ -18,24 +15,25 @@ async def get_timeline_points(
     target_username: Optional[str] = None
 ):
     """認証されたユーザーのタイムラインデータを軽量JSON形式で配信"""
+    conn = None
+    cur = None
     try:
-        # Get username from Supabase
-        supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_KEY"))
         user_id = current_user["user_id"]
         
-        # Get username
-        username_response = supabase.table("username").select("username").eq("user_id", user_id).execute()
-        if not username_response.data:
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        # Get username from PostgreSQL
+        cur.execute("SELECT username FROM username WHERE user_id = %s", (user_id,))
+        row = cur.fetchone()
+        if not row:
             return {"total": 0, "data": [], "message": "Username not set"}
         
-        current_username = username_response.data[0]["username"]
+        current_username = row[0]
         
         # Determine target username
         if target_username and target_username != current_username:
              # Check for mutual follow
-             conn = get_db_connection()
-             cur = conn.cursor()
-             
              # Check A follows B
              cur.execute("SELECT 1 FROM follows WHERE follower_username = %s AND followed_username = %s", (current_username, target_username))
              following = cur.fetchone() is not None
@@ -43,9 +41,6 @@ async def get_timeline_points(
              # Check B follows A
              cur.execute("SELECT 1 FROM follows WHERE follower_username = %s AND followed_username = %s", (target_username, current_username))
              followed_by = cur.fetchone() is not None
-             
-             cur.close()
-             conn.close()
              
              if not (following and followed_by):
                  raise HTTPException(status_code=403, detail="Mutual follow required to view this user's data")
@@ -55,9 +50,6 @@ async def get_timeline_points(
              username = current_username
         
         # Get lightweight timeline data from PostgreSQL
-        conn = get_db_connection()
-        cur = conn.cursor()
-        
         # 必要最小限のカラムのみ取得して軽量化
         if limit:
             query = """
@@ -110,9 +102,6 @@ async def get_timeline_points(
                 
             data.append(point)
         
-        cur.close()
-        conn.close()
-        
         logger.info(f"Delivered {len(data)} timeline points for user {username}")
         
         return {
@@ -121,9 +110,14 @@ async def get_timeline_points(
             "data": data
         }
         
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to get timeline points: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to get timeline points: {str(e)}")
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
 
 @router.get("/timeline-stats")
 async def get_timeline_stats(
@@ -131,24 +125,25 @@ async def get_timeline_stats(
     current_user: dict = Depends(get_current_user)
 ):
     """認証されたユーザーのタイムラインデータ統計情報を取得"""
+    conn = None
+    cur = None
     try:
-        # Get username from Supabase
-        supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_KEY"))
         user_id = current_user["user_id"]
         
-        # Get username
-        username_response = supabase.table("username").select("username").eq("user_id", user_id).execute()
-        if not username_response.data:
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        # Get username from PostgreSQL
+        cur.execute("SELECT username FROM username WHERE user_id = %s", (user_id,))
+        row = cur.fetchone()
+        if not row:
             return {"message": "Username not set", "stats": {}}
         
-        current_username = username_response.data[0]["username"]
+        current_username = row[0]
         
         # Determine target username
         if target_username and target_username != current_username:
              # Check for mutual follow
-             conn = get_db_connection()
-             cur = conn.cursor()
-             
              # Check A follows B
              cur.execute("SELECT 1 FROM follows WHERE follower_username = %s AND followed_username = %s", (current_username, target_username))
              following = cur.fetchone() is not None
@@ -156,9 +151,6 @@ async def get_timeline_stats(
              # Check B follows A
              cur.execute("SELECT 1 FROM follows WHERE follower_username = %s AND followed_username = %s", (target_username, current_username))
              followed_by = cur.fetchone() is not None
-             
-             cur.close()
-             conn.close()
              
              if not (following and followed_by):
                  raise HTTPException(status_code=403, detail="Mutual follow required to view this user's data")
@@ -168,9 +160,6 @@ async def get_timeline_stats(
              username = current_username
         
         # Get stats from PostgreSQL
-        conn = get_db_connection()
-        cur = conn.cursor()
-        
         # 総データ数
         cur.execute("""
             SELECT COUNT(*) FROM timeline_data 
@@ -200,9 +189,6 @@ async def get_timeline_stats(
         """, (username,))
         date_range = cur.fetchone()
         
-        cur.close()
-        conn.close()
-        
         stats = {
             "total_points": total_points,
             "username": username,
@@ -215,9 +201,14 @@ async def get_timeline_stats(
         
         return {"stats": stats}
         
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to get timeline stats: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to get timeline stats: {str(e)}")
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
 
 @router.get("/daily-route")
 async def get_daily_route(
@@ -226,24 +217,25 @@ async def get_daily_route(
     current_user: dict = Depends(get_current_user)
 ):
     """指定された日付の移動ルートデータを取得"""
+    conn = None
+    cur = None
     try:
-        # Get username from Supabase
-        supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_KEY"))
         user_id = current_user["user_id"]
 
-        # Get username
-        username_response = supabase.table("username").select("username").eq("user_id", user_id).execute()
-        if not username_response.data:
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        # Get username from PostgreSQL
+        cur.execute("SELECT username FROM username WHERE user_id = %s", (user_id,))
+        row = cur.fetchone()
+        if not row:
             raise HTTPException(status_code=400, detail="Username not set")
 
-        current_username = username_response.data[0]["username"]
+        current_username = row[0]
 
         # Determine target username
         if target_username and target_username != current_username:
              # Check for mutual follow
-             conn = get_db_connection()
-             cur = conn.cursor()
-
              # Check A follows B
              cur.execute("SELECT 1 FROM follows WHERE follower_username = %s AND followed_username = %s", (current_username, target_username))
              following = cur.fetchone() is not None
@@ -251,9 +243,6 @@ async def get_daily_route(
              # Check B follows A
              cur.execute("SELECT 1 FROM follows WHERE follower_username = %s AND followed_username = %s", (target_username, current_username))
              followed_by = cur.fetchone() is not None
-
-             cur.close()
-             conn.close()
 
              if not (following and followed_by):
                  raise HTTPException(status_code=403, detail="Mutual follow required to view this user's data")
@@ -263,9 +252,6 @@ async def get_daily_route(
              username = current_username
 
         # Get route data from PostgreSQL
-        conn = get_db_connection()
-        cur = conn.cursor()
-
         # 指定された日付のデータを取得 (UTCベースで日付判定)
         query = """
             SELECT latitude, longitude, type, start_time, visit_semantictype, activity_type, activity_distancemeters
@@ -306,9 +292,6 @@ async def get_daily_route(
 
             data.append(point)
 
-        cur.close()
-        conn.close()
-
         return {
             "date": date,
             "username": username,
@@ -322,3 +305,6 @@ async def get_daily_route(
     except Exception as e:
         logger.error(f"Failed to get daily route: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to get daily route: {str(e)}")
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()

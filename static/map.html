@@ -708,8 +708,6 @@
                      content += `
                         <div style="border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 10px; background: #fff5f5; padding: 10px; border-radius: 4px;">
                             <div style="font-weight: bold; color: #c0392b;">📅 ${date} のルート</div>
-                            <div style="font-size: 12px; margin-top: 5px;">総距離: ${(data.total_distance / 1000).toFixed(2)} km</div>
-                            <div style="font-size: 12px;">ポイント数: ${data.total_points}</div>
                             <button class="btn btn-secondary" onclick="window.mapInstance.clearRoute()" style="margin-top: 8px; font-size: 12px; padding: 4px 8px; width: 100%;">ルート解除</button>
                         </div>
                     `;
