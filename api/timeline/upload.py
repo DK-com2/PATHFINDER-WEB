@@ -66,13 +66,9 @@ async def upload_timeline_file(
         username = username_response.data[0]["username"]
         logger.info(f"ユーザー名取得成功: {username}")
         
-        # ファイル内容を読み取り
-        content = await file.read()
-        logger.info(f"ファイル読み取り完了: {len(content)} bytes")
-        
         # JSONファイルの場合のみ対応（今回はJSONのみ実装）
         if file_extension == ".json":
-            return await _process_json_file(content, username, file.filename)
+            return await _process_json_file_stream(file.file, username, file.filename)
         else:
             raise HTTPException(status_code=400, detail="現在はJSONファイルのみ対応しています")
             
@@ -83,23 +79,36 @@ async def upload_timeline_file(
         raise HTTPException(status_code=500, detail=f"ファイル処理に失敗しました: {str(e)}")
 
 
-async def _process_json_file(content: bytes, username: str, filename: str) -> JSONResponse:
-    """JSONファイルを処理してデータベースに保存"""
+async def _process_json_file_stream(file_obj, username: str, filename: str) -> JSONResponse:
+    """JSONファイルをストリーミング処理してデータベースに保存"""
+    BATCH_SIZE = 1000
     try:
-        logger.info(f"JSON処理開始: {filename}")
+        logger.info(f"JSONストリーミング処理開始: {filename}")
         
-        # JSONデータを解析
-        json_data = json.loads(content.decode('utf-8'))
-        logger.info(f"JSON解析完了: データタイプ = {type(json_data)}")
-        
-        # JSONパーサーを使用してレコードを生成
         parser = TimelineJSONParser()
-        logger.info("パーサー初期化完了")
+        records_generator = parser.parse_json_stream(file_obj, username)
         
-        records = parser.parse_json_data(json_data, username)
-        logger.info(f"レコード生成完了: {len(records)}件")
+        batch = []
+        total_saved = 0
+        total_records = 0
+
+        for record in records_generator:
+            batch.append(record)
+            total_records += 1
+
+            if len(batch) >= BATCH_SIZE:
+                 saved_count = await _save_records_with_copy(batch)
+                 total_saved += saved_count
+                 batch = []
         
-        if not records:
+        # 残りのバッチを処理
+        if batch:
+            saved_count = await _save_records_with_copy(batch)
+            total_saved += saved_count
+
+        logger.info(f"処理完了: 全{total_records}件, 保存{total_saved}件")
+
+        if total_records == 0:
             return JSONResponse(
                 status_code=400,
                 content={
@@ -109,11 +118,6 @@ async def _process_json_file(content: bytes, username: str, filename: str) -> JS
                 }
             )
         
-        # COPY文で超高速データベース保存
-        logger.info("超高速データベース保存開始")
-        saved_count = await _save_records_with_copy(records)
-        logger.info(f"COPY文による超高速保存完了: {saved_count}件")
-        
         validation_summary = parser.get_parsing_summary()
         
         return JSONResponse(
@@ -122,16 +126,13 @@ async def _process_json_file(content: bytes, username: str, filename: str) -> JS
                 "success": True,
                 "message": f"データの処理が完了しました",
                 "filename": filename,
-                "total_records": len(records),
-                "saved_records": saved_count,
+                "total_records": total_records,
+                "saved_records": total_saved,
                 "username": username,
                 "validation_summary": validation_summary
             }
         )
         
-    except json.JSONDecodeError as e:
-        logger.error(f"JSON解析エラー: {e}")
-        raise HTTPException(status_code=400, detail=f"JSONファイルの解析に失敗しました: {str(e)}")
     except Exception as e:
         logger.error(f"JSON処理エラー: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"JSON処理に失敗しました: {str(e)}")

@@ -54,17 +54,29 @@ async def fast_upload_timeline_file(
         
         username = username_response.data[0]["username"]
         
-        # ファイル内容を読み取り
-        content = await file.read()
-        
-        # JSONデータを解析
-        json_data = json.loads(content.decode('utf-8'))
-        
-        # JSONパーサーを使用してレコードを生成
+        # ストリーミング処理でレコードを生成・保存
         parser = TimelineJSONParser()
-        records = parser.parse_json_data(json_data, username)
+        records_generator = parser.parse_json_stream(file.file, username)
         
-        if not records:
+        BATCH_SIZE = 1000
+        batch = []
+        total_saved = 0
+        total_records = 0
+        
+        for record in records_generator:
+            batch.append(record)
+            total_records += 1
+
+            if len(batch) >= BATCH_SIZE:
+                saved_count = await _save_records_with_copy(batch)
+                total_saved += saved_count
+                batch = []
+        
+        if batch:
+            saved_count = await _save_records_with_copy(batch)
+            total_saved += saved_count
+
+        if total_records == 0:
             return JSONResponse(
                 status_code=400,
                 content={
@@ -73,19 +85,16 @@ async def fast_upload_timeline_file(
                 }
             )
         
-        # COPY文で超高速保存
-        saved_count = await _save_records_with_copy(records)
-        
         return JSONResponse(
             status_code=200,
             content={
                 "success": True,
                 "message": "データの処理が完了しました",
                 "filename": file.filename,
-                "total_records": len(records),
-                "saved_records": saved_count,
+                "total_records": total_records,
+                "saved_records": total_saved,
                 "username": username,
-                "method": "COPY (超高速)"
+                "method": "COPY (超高速・ストリーミング)"
             }
         )
         
