@@ -361,6 +361,7 @@
                 this.token = localStorage.getItem('token');
                 this.currentMapStyle = 'osm';
                 this.lastZoom = 10; // 初期ズームレベル
+                this.dailyRouteData = null; // 日次ルートデータ
 
                 if (!this.token) {
                     alert('ログインが必要です');
@@ -411,13 +412,6 @@
                     }
 
                     this.userInfo = await response.json();
-
-                    // Display target user info if specific user requested
-                    if (this.targetUser) {
-                        // We will check mutual follow status indirectly via data load
-                        // But here we can update UI to show we are viewing someone else
-                    }
-
                     this.updateUserInfo();
                 } catch (error) {
                     console.error('Failed to load user info:', error);
@@ -445,7 +439,6 @@
                     }
 
                     const result = await response.json();
-                    // API response received
 
                     // タイムスタンプの事前計算とデータセット
                     this.data = (result.data || []).map(d => {
@@ -455,8 +448,6 @@
 
                     // 初期状態では全データ表示
                     this.filteredData = [...this.data];
-
-                    // Data points loaded
 
                     if (this.data.length > 0) {
                         // 最小・最大日時の計算
@@ -482,8 +473,6 @@
             }
 
             initMap() {
-                // Initializing map with data
-
                 // 初期視点（日本の中心付近）
                 const initialViewState = {
                     longitude: 139.6917,
@@ -499,7 +488,6 @@
                     const avgLng = this.data.reduce((sum, d) => sum + d.lng, 0) / this.data.length;
                     initialViewState.latitude = avgLat;
                     initialViewState.longitude = avgLng;
-                    // Center map at calculated position
                 }
 
                 try {
@@ -507,39 +495,20 @@
                     this.currentZoom = initialViewState.zoom;
                     this.lastZoom = initialViewState.zoom;
 
-                    // Deck.glで背景地図も含めて初期化（Leafletは使わない）
+                    // Deck.glで背景地図も含めて初期化
                     this.deck = new deck.DeckGL({
                         container: 'map',
                         initialViewState: initialViewState,
                         controller: true,
-                        layers: [
-                            this.createTileLayer(),
-                            this.createTimelineLayer(),
-                            this.createOtherPointsLayer()
-                        ],
+                        layers: [], // initLayers will set them
                         onHover: this.onHover.bind(this),
                         onClick: this.onClick.bind(this),
                         onViewStateChange: this.onViewStateChange.bind(this)
                     });
 
-                    // Deck.GL initialized successfully
-
                     // 明示的にレイヤーを更新
                     setTimeout(() => {
-                        // Updating layers for performance
-                        const timelineLayer = this.createTimelineLayer();
-                        const otherLayer = this.createOtherPointsLayer();
-
-                        this.deck.setProps({
-                            layers: [
-                                this.createTileLayer(),
-                                timelineLayer,
-                                otherLayer
-                            ]
-                        });
-
-                        // 表示ポイント数を更新
-                        this.updatePointCount(timelineLayer.props.data.length + otherLayer.props.data.length);
+                        this.updateLayers();
                     }, 100);
 
                 } catch (error) {
@@ -548,8 +517,29 @@
                 }
             }
 
+            updateLayers() {
+                if (!this.deck) return;
+
+                const layers = [
+                    this.createTileLayer(),
+                    this.createTimelineLayer(),
+                    this.createOtherPointsLayer()
+                ];
+
+                const pathLayer = this.createPathLayer();
+                if (pathLayer) {
+                    layers.push(pathLayer);
+                }
+
+                this.deck.setProps({
+                    layers: layers
+                });
+
+                // 表示ポイント数を更新
+                this.updatePointCount(this.createTimelineLayer().props.data.length + this.createOtherPointsLayer().props.data.length);
+            }
+
             createTileLayer() {
-                // Deck.glのTileLayerで背景地図を表示
                 let tileUrl;
                 switch (this.currentMapStyle) {
                     case 'satellite':
@@ -584,30 +574,27 @@
                 });
             }
 
+            createPathLayer() {
+                if (!this.dailyRouteData) return null;
+
+                return new deck.PathLayer({
+                    id: 'daily-route-path',
+                    data: [this.dailyRouteData],
+                    pickable: true,
+                    widthScale: 1,
+                    widthMinPixels: 3,
+                    getPath: d => d.path,
+                    getColor: [231, 76, 60, 200], // Red
+                    getWidth: 5,
+                    capRounded: true,
+                    jointRounded: true
+                });
+            }
+
             updateMapStyle(style) {
                 this.currentMapStyle = style;
-
-                // 著作権表示を更新
                 this.updateAttribution(style);
-
-                // Deck.glのレイヤーを更新
-                if (this.deck) {
-                    const timelineLayer = this.createTimelineLayer();
-                    const otherLayer = this.createOtherPointsLayer();
-
-                    this.deck.setProps({
-                        layers: [
-                            this.createTileLayer(),
-                            timelineLayer,
-                            otherLayer
-                        ]
-                    });
-
-                    // 表示ポイント数を更新
-                    this.updatePointCount(timelineLayer.props.data.length + otherLayer.props.data.length);
-
-                    // Map style updated
-                }
+                this.updateLayers();
             }
 
             updateAttribution(style) {
@@ -629,7 +616,6 @@
             }
 
             setupEventListeners() {
-                // 地図スタイル変更
                 const mapStyleSelect = document.getElementById('map-style');
                 if (mapStyleSelect) {
                     mapStyleSelect.addEventListener('change', (e) => {
@@ -646,7 +632,6 @@
 
                 container.style.display = 'block';
 
-                // Check if slider already initialized
                 if (slider.noUiSlider) {
                     slider.noUiSlider.destroy();
                 }
@@ -658,38 +643,31 @@
                         'min': this.minDate,
                         'max': this.maxDate
                     },
-                    step: 24 * 60 * 60 * 1000, // 1 day step
+                    step: 24 * 60 * 60 * 1000,
                     format: {
                         to: value => value,
                         from: value => value
                     }
                 });
 
-                // 初期表示更新
                 this.updateDateDisplay(this.minDate, this.maxDate);
 
-                // Event: Update text while dragging
                 slider.noUiSlider.on('update', (values) => {
                     this.updateDateDisplay(values[0], values[1]);
                 });
 
-                // Event: Update map when drag ends (パフォーマンスのため)
                 slider.noUiSlider.on('set', (values) => {
                     this.applyTimeFilter(parseFloat(values[0]), parseFloat(values[1]));
                 });
 
-                // Preset Buttons
                 document.querySelectorAll('.preset-btn').forEach(btn => {
                     btn.addEventListener('click', (e) => {
-                        // Remove active class
                         document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
                         e.target.classList.add('active');
 
                         const range = e.target.dataset.range;
                         let start = this.minDate;
                         let end = this.maxDate;
-
-                        const now = new Date().getTime();
 
                         if (range === 'month') {
                             const oneMonthAgo = new Date();
@@ -714,40 +692,57 @@
 
             applyTimeFilter(start, end) {
                 this.filteredData = this.data.filter(d => d.timestamp >= start && d.timestamp <= end);
-
-                // Deck.glのレイヤーを更新
-                if (this.deck) {
-                    const timelineLayer = this.createTimelineLayer();
-                    const otherLayer = this.createOtherPointsLayer();
-
-                    this.deck.setProps({
-                        layers: [
-                            this.createTileLayer(),
-                            timelineLayer,
-                            otherLayer
-                        ]
-                    });
-
-                    // 表示ポイント数を更新
-                    this.updatePointCount(timelineLayer.props.data.length + otherLayer.props.data.length);
-                }
+                this.updateLayers();
             }
 
-            // 表示ポイント数を更新
             updatePointCount(displayedPoints) {
                 const dataInfoElement = document.getElementById('data-info');
-                if (dataInfoElement && this.data.length > 0) {
+                if (!dataInfoElement) return;
+
+                let content = '';
+
+                // Add daily stats if available
+                if (this.dailyRouteData) {
+                    const data = this.dailyRouteData.stats;
+                    const date = new Date(data.date).toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' });
+                     content += `
+                        <div style="border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 10px; background: #fff5f5; padding: 10px; border-radius: 4px;">
+                            <div style="font-weight: bold; color: #c0392b;">📅 ${date} のルート</div>
+                            <button class="btn btn-secondary" onclick="window.mapInstance.clearRoute()" style="margin-top: 8px; font-size: 12px; padding: 4px 8px; width: 100%;">ルート解除</button>
+                        </div>
+                    `;
+                }
+
+                if (this.data.length > 0) {
                     const totalPoints = this.data.length;
                     const filteredTotal = this.filteredData.length;
                     const percentage = filteredTotal > 0 ? Math.round((displayedPoints / filteredTotal) * 100) : 0;
                     const filterPercentage = totalPoints > 0 ? Math.round((filteredTotal / totalPoints) * 100) : 0;
 
-                    dataInfoElement.innerHTML = `
+                    content += `
                         <div><strong>📊 データ情報</strong></div>
                         <div>総データ数: ${totalPoints.toLocaleString()}</div>
                         <div>期間絞込: ${filteredTotal.toLocaleString()} (${filterPercentage}%)</div>
                         <div>表示中: ${displayedPoints.toLocaleString()} (ズーム: ${percentage}%)</div>
                         <div class="legend">
+                           ${this.getLegendHtml()}
+                        </div>
+                        ${displayedPoints < totalPoints ?
+                            '<div style="font-size: 10px; color: #666; margin-top: 8px;">🔍 拡大すると更多のポイントが表示されます</div>' : ''
+                        }
+                    `;
+                } else {
+                     content += `
+                        <div style="color: #e67e22;">📊 データなし</div>
+                        <div style="font-size: 12px; color: #7f8c8d;">タイムラインデータが見つかりません</div>
+                    `;
+                }
+
+                dataInfoElement.innerHTML = content;
+            }
+
+            getLegendHtml() {
+                return `
                             <div class="legend-item">
                                 <div class="legend-color" style="background: #e74c3c;"></div>
                                 <span>訪問地点 (visit)</span>
@@ -772,245 +767,7 @@
                                 <div class="legend-color" style="background: #1abc9c;"></div>
                                 <span>パス (path)</span>
                             </div>
-                        </div>
-                        ${displayedPoints < totalPoints ?
-                            '<div style="font-size: 10px; color: #666; margin-top: 8px;">🔍 拡大すると更多のポイントが表示されます</div>' : ''
-                        }
-                    `;
-                }
-            }
-
-            // シンプルなデータ間引き関数
-            filterDataByZoom(data, zoom) {
-                // データが少ない場合はそのまま表示
-                if (data.length <= 3000) return data;
-
-                // ズームレベルに応じてきめ細かく間引き
-                let percentage;
-                if (zoom <= 8) {
-                    percentage = 0.5; // 50%
-                } else if (zoom <= 9) {
-                    percentage = 0.6; // 60%
-                } else if (zoom <= 10) {
-                    percentage = 0.7; // 70%
-                } else if (zoom <= 11) {
-                    percentage = 0.8; // 80%
-                } else if (zoom <= 12) {
-                    percentage = 0.9; // 90%
-                } else if (zoom <= 13) {
-                    percentage = 0.95; // 95%
-                } else {
-                    return data; // 全て表示
-                }
-
-                const maxPoints = Math.floor(data.length * percentage);
-                const step = Math.floor(data.length / maxPoints);
-                const result = data.filter((_, index) => index % step === 0);
-
-                console.log(`Zoom: ${zoom.toFixed(1)}, Showing: ${result.length}/${data.length} (${Math.round((result.length / data.length) * 100)}%)`);
-
-                return result;
-            }
-
-            createTimelineLayer() {
-                // timelineとtimelinePathのみをフィルタリング（filteredDataを使用）
-                let timelineData = this.filteredData.filter(d =>
-                    d.type === 'timeline' || d.type === 'timelinePath'
-                );
-
-                // ズームレベルに応じてデータを間引き（currentZoomを使用）
-                const zoom = this.currentZoom || this.lastZoom || 10;
-                timelineData = this.filterDataByZoom(timelineData, zoom);
-
-                // Creating Timeline Layer
-
-                return new deck.ScatterplotLayer({
-                    id: 'timeline-points',
-                    data: timelineData,
-                    pickable: true,
-                    opacity: 0.7, // timelineは少し薄く
-                    stroked: true,
-                    filled: true,
-                    radiusScale: 1,
-                    radiusMinPixels: 3,
-                    radiusMaxPixels: 50,
-                    lineWidthMinPixels: 1,
-                    getPosition: d => {
-                        const pos = [d.lng, d.lat];
-                        return pos;
-                    },
-                    getRadius: d => this.getPointRadiusByType(d.type),
-                    getFillColor: d => this.getColorByType(d.type),
-                    getLineColor: [0, 0, 0, 200],
-                    updateTriggers: {
-                        getFillColor: timelineData,
-                        getPosition: timelineData,
-                        getRadius: [this.deck?.viewState?.zoom]
-                    }
-                });
-            }
-
-            createOtherPointsLayer() {
-                // timeline以外のポイントをフィルタリング（filteredDataを使用）
-                let otherData = this.filteredData.filter(d =>
-                    d.type !== 'timeline' && d.type !== 'timelinePath'
-                );
-
-                // ズームレベルに応じてデータを間引き（currentZoomを使用）
-                const zoom = this.currentZoom || this.lastZoom || 10;
-                otherData = this.filterDataByZoom(otherData, zoom);
-
-                // Creating Other Points Layer
-
-                return new deck.ScatterplotLayer({
-                    id: 'other-points',
-                    data: otherData,
-                    pickable: true,
-                    opacity: 0.9, // timeline以外は濃く表示して目立たせる
-                    stroked: true,
-                    filled: true,
-                    radiusScale: 1,
-                    radiusMinPixels: 2, // timeline以外は小さめの最小サイズ
-                    radiusMaxPixels: 40, // timeline以外は小さめの最大サイズ
-                    lineWidthMinPixels: 1,
-                    getPosition: d => {
-                        const pos = [d.lng, d.lat];
-                        return pos;
-                    },
-                    getRadius: d => this.getPointRadiusByType(d.type),
-                    getFillColor: d => this.getColorByType(d.type),
-                    getLineColor: [0, 0, 0, 200],
-                    updateTriggers: {
-                        getFillColor: otherData,
-                        getPosition: otherData,
-                        getRadius: [this.deck?.viewState?.zoom]
-                    }
-                });
-            }
-
-            getPointRadiusByType(type) {
-                // 現在のズームレベルを取得
-                const zoom = this.deck?.viewState?.zoom || 10;
-
-                // タイプごとにサイズ調整
-                const isTimeline = type === 'timeline' || type === 'timelinePath';
-
-                // ズームレベルに応じてポイントサイズを調整
-                let baseRadius;
-                if (zoom <= 8) {
-                    baseRadius = isTimeline ? 40 : 30; // timeline以外は小さく
-                } else if (zoom <= 12) {
-                    baseRadius = isTimeline ? 25 : 18; // timeline以外は小さく
-                } else if (zoom <= 16) {
-                    baseRadius = isTimeline ? 15 : 12; // timeline以外は小さく
-                } else {
-                    baseRadius = isTimeline ? 8 : 6; // timeline以外は小さく
-                }
-
-                return baseRadius;
-            }
-
-            getColorByType(type) {
-                // console.log removed for performance
-                switch (type) {
-                    case 'visit':
-                    case 'placeVisit':
-                        return [231, 76, 60, 255]; // 赤
-                    case 'activity':
-                    case 'activitySegment':
-                        return [155, 89, 182, 255]; // 紫（活動）
-                    case 'timeline':
-                    case 'timelinePath':
-                        return [52, 152, 219, 255]; // 青（要求通り）
-                    case 'move':
-                        return [46, 204, 113, 255]; // 緑（移動）
-                    case 'place':
-                        return [241, 196, 15, 255]; // 黄色（場所）
-                    case 'path':
-                        return [26, 188, 156, 255]; // ティール（パス）
-                    default:
-                        // Unknown type, using default color
-                        return [255, 165, 0, 255]; // オレンジ（未知のタイプ）
-                }
-            }
-
-            onHover(info) {
-                const tooltip = document.getElementById('tooltip');
-
-                if (info.object) {
-                    const obj = info.object;
-                    const date = new Date(obj.time).toLocaleDateString('ja-JP');
-                    const time = new Date(obj.time).toLocaleTimeString('ja-JP');
-
-                    let content = `
-                        <div><strong>タイプ:</strong> ${obj.type}</div>
-                        <div><strong>日時:</strong> ${date} ${time}</div>
-                        <div><strong>座標:</strong> ${obj.lat.toFixed(4)}, ${obj.lng.toFixed(4)}</div>
-                    `;
-
-                    if (obj.semantic) {
-                        content += `<div><strong>場所:</strong> ${obj.semantic}</div>`;
-                    }
-
-                    if (obj.activity) {
-                        content += `<div><strong>活動:</strong> ${obj.activity}</div>`;
-                    }
-
-                    tooltip.innerHTML = content;
-                    tooltip.style.display = 'block';
-                    tooltip.style.left = info.x + 'px';
-                    tooltip.style.top = info.y + 'px';
-                } else {
-                    tooltip.style.display = 'none';
-                }
-            }
-
-            onClick(info) {
-                if (info.object) {
-                    console.log('Clicked object:', info.object);
-                }
-            }
-
-            onViewStateChange({ viewState }) {
-                // 現在のズームレベルを保存（小数点も含む）
-                this.currentZoom = viewState.zoom;
-
-                // ズームレベルが変わったときにレイヤーを更新
-                const currentZoom = Math.round(viewState.zoom);
-                const prevZoom = this.lastZoom || currentZoom;
-
-                if (Math.abs(currentZoom - prevZoom) >= 0.5) { // ズームレベルが0.5以上変わった時に更新
-                    this.lastZoom = currentZoom;
-
-                    // デバウンス処理 - 既存のタイマーをクリア
-                    if (this.updateTimer) {
-                        clearTimeout(this.updateTimer);
-                    }
-
-                    // 大量データの場合、更新を少し遅延させてパフォーマンス向上
-                    const delay = this.data.length > 50000 ? 300 : 150; // 遅延を調整
-
-                    // ポイントサイズを更新するためにレイヤーを再作成
-                    this.updateTimer = setTimeout(() => {
-                        if (this.deck) {
-                            const timelineLayer = this.createTimelineLayer();
-                            const otherLayer = this.createOtherPointsLayer();
-
-                            this.deck.setProps({
-                                layers: [
-                                    this.createTileLayer(),
-                                    timelineLayer,
-                                    otherLayer
-                                ]
-                            });
-
-                            // 表示ポイント数を更新
-                            this.updatePointCount(timelineLayer.props.data.length + otherLayer.props.data.length);
-                        }
-                    }, delay);
-                }
-
-                return viewState;
+                `;
             }
 
             updateUserInfo() {
@@ -1033,19 +790,211 @@
             }
 
             updateDataInfo(result) {
-                const dataInfoEl = document.getElementById('data-info');
+                // Initial load only
+                this.updatePointCount(result.data ? result.data.length : 0);
+            }
 
-                if (result.total === 0) {
-                    dataInfoEl.innerHTML = `
-                        <div style="color: #e67e22;">📊 データなし</div>
-                        <div style="font-size: 12px; color: #7f8c8d;">タイムラインデータが見つかりません</div>
-                    `;
-                } else {
-                    dataInfoEl.innerHTML = `
-                        <div style="font-weight: bold; color: #27ae60;">📊 ${result.total.toLocaleString()} ポイント</div>
-                        <div style="font-size: 12px; color: #7f8c8d;">全データを地図上に表示中</div>
-                    `;
+            filterDataByZoom(data, zoom) {
+                if (data.length <= 3000) return data;
+
+                let percentage;
+                if (zoom <= 8) percentage = 0.5;
+                else if (zoom <= 9) percentage = 0.6;
+                else if (zoom <= 10) percentage = 0.7;
+                else if (zoom <= 11) percentage = 0.8;
+                else if (zoom <= 12) percentage = 0.9;
+                else if (zoom <= 13) percentage = 0.95;
+                else return data;
+
+                const maxPoints = Math.floor(data.length * percentage);
+                const step = Math.floor(data.length / maxPoints);
+                return data.filter((_, index) => index % step === 0);
+            }
+
+            createTimelineLayer() {
+                let timelineData = this.filteredData.filter(d =>
+                    d.type === 'timeline' || d.type === 'timelinePath'
+                );
+
+                const zoom = this.currentZoom || this.lastZoom || 10;
+                timelineData = this.filterDataByZoom(timelineData, zoom);
+
+                return new deck.ScatterplotLayer({
+                    id: 'timeline-points',
+                    data: timelineData,
+                    pickable: true,
+                    opacity: 0.7,
+                    stroked: true,
+                    filled: true,
+                    radiusScale: 1,
+                    radiusMinPixels: 3,
+                    radiusMaxPixels: 50,
+                    lineWidthMinPixels: 1,
+                    getPosition: d => [d.lng, d.lat],
+                    getRadius: d => this.getPointRadiusByType(d.type),
+                    getFillColor: d => this.getColorByType(d.type),
+                    getLineColor: [0, 0, 0, 200],
+                    updateTriggers: {
+                        getFillColor: timelineData,
+                        getPosition: timelineData,
+                        getRadius: [this.deck?.viewState?.zoom]
+                    }
+                });
+            }
+
+            createOtherPointsLayer() {
+                let otherData = this.filteredData.filter(d =>
+                    d.type !== 'timeline' && d.type !== 'timelinePath'
+                );
+
+                const zoom = this.currentZoom || this.lastZoom || 10;
+                otherData = this.filterDataByZoom(otherData, zoom);
+
+                return new deck.ScatterplotLayer({
+                    id: 'other-points',
+                    data: otherData,
+                    pickable: true,
+                    opacity: 0.9,
+                    stroked: true,
+                    filled: true,
+                    radiusScale: 1,
+                    radiusMinPixels: 2,
+                    radiusMaxPixels: 40,
+                    lineWidthMinPixels: 1,
+                    getPosition: d => [d.lng, d.lat],
+                    getRadius: d => this.getPointRadiusByType(d.type),
+                    getFillColor: d => this.getColorByType(d.type),
+                    getLineColor: [0, 0, 0, 200],
+                    updateTriggers: {
+                        getFillColor: otherData,
+                        getPosition: otherData,
+                        getRadius: [this.deck?.viewState?.zoom]
+                    }
+                });
+            }
+
+            getPointRadiusByType(type) {
+                const zoom = this.deck?.viewState?.zoom || 10;
+                const isTimeline = type === 'timeline' || type === 'timelinePath';
+                let baseRadius;
+                if (zoom <= 8) baseRadius = isTimeline ? 40 : 30;
+                else if (zoom <= 12) baseRadius = isTimeline ? 25 : 18;
+                else if (zoom <= 16) baseRadius = isTimeline ? 15 : 12;
+                else baseRadius = isTimeline ? 8 : 6;
+                return baseRadius;
+            }
+
+            getColorByType(type) {
+                switch (type) {
+                    case 'visit':
+                    case 'placeVisit': return [231, 76, 60, 255];
+                    case 'activity':
+                    case 'activitySegment': return [155, 89, 182, 255];
+                    case 'timeline':
+                    case 'timelinePath': return [52, 152, 219, 255];
+                    case 'move': return [46, 204, 113, 255];
+                    case 'place': return [241, 196, 15, 255];
+                    case 'path': return [26, 188, 156, 255];
+                    default: return [255, 165, 0, 255];
                 }
+            }
+
+            onHover(info) {
+                const tooltip = document.getElementById('tooltip');
+                if (info.object) {
+                    const obj = info.object;
+                    const date = new Date(obj.time).toLocaleDateString('ja-JP');
+                    const time = new Date(obj.time).toLocaleTimeString('ja-JP');
+                    let content = `
+                        <div><strong>タイプ:</strong> ${obj.type}</div>
+                        <div><strong>日時:</strong> ${date} ${time}</div>
+                        <div><strong>座標:</strong> ${obj.lat.toFixed(4)}, ${obj.lng.toFixed(4)}</div>
+                    `;
+                    if (obj.semantic) content += `<div><strong>場所:</strong> ${obj.semantic}</div>`;
+                    if (obj.activity) content += `<div><strong>活動:</strong> ${obj.activity}</div>`;
+
+                    if (obj.path) { // Route path hover?
+                        // PathLayer data structure is {path: [[],[]...], date: ...}
+                        // info.object refers to this data object.
+                         content = `<div><strong>📅 日次ルート</strong></div><div>${obj.date}</div>`;
+                    }
+
+                    tooltip.innerHTML = content;
+                    tooltip.style.display = 'block';
+                    tooltip.style.left = info.x + 'px';
+                    tooltip.style.top = info.y + 'px';
+                } else {
+                    tooltip.style.display = 'none';
+                }
+            }
+
+            async onClick(info) {
+                if (info.object && info.object.time) {
+                    const date = new Date(info.object.time);
+                    const dateStr = date.toISOString().split('T')[0];
+                    console.log('Fetching route for:', dateStr);
+                    await this.fetchDailyRoute(dateStr);
+                }
+            }
+
+            async fetchDailyRoute(dateStr) {
+                try {
+                    const infoPanel = document.getElementById('data-info');
+                    // Simple loading indicator
+                    // But we want to preserve layout
+
+                    let url = `/api/map/daily-route?date=${dateStr}`;
+                    if (this.targetUser) {
+                        url += `&target_username=${encodeURIComponent(this.targetUser)}`;
+                    }
+
+                    const response = await fetch(url, {
+                        headers: {
+                            'Authorization': `Bearer ${this.token}`
+                        }
+                    });
+
+                    if (!response.ok) throw new Error('ルートデータの取得に失敗しました');
+
+                    const result = await response.json();
+
+                    if (result.data && result.data.length > 0) {
+                        const path = result.data.map(d => [d.lng, d.lat]);
+                        this.dailyRouteData = {
+                            path: path,
+                            date: dateStr,
+                            stats: result
+                        };
+                        this.updateLayers();
+                    } else {
+                        alert('指定された日付のデータが見つかりませんでした');
+                    }
+
+                } catch (error) {
+                    console.error('Failed to fetch daily route:', error);
+                    alert('エラー: ' + error.message);
+                }
+            }
+
+            clearRoute() {
+                this.dailyRouteData = null;
+                this.updateLayers();
+            }
+
+            onViewStateChange({ viewState }) {
+                this.currentZoom = viewState.zoom;
+                const currentZoom = Math.round(viewState.zoom);
+                const prevZoom = this.lastZoom || currentZoom;
+
+                if (Math.abs(currentZoom - prevZoom) >= 0.5) {
+                    this.lastZoom = currentZoom;
+                    if (this.updateTimer) clearTimeout(this.updateTimer);
+                    const delay = this.data.length > 50000 ? 300 : 150;
+                    this.updateTimer = setTimeout(() => {
+                        this.updateLayers();
+                    }, delay);
+                }
+                return viewState;
             }
 
             showError(message) {
@@ -1061,25 +1010,20 @@
             window.location.href = '/';
         }
 
-        // パネル折りたたみ機能
         function togglePanel() {
             const panel = document.getElementById('info-panel');
             const toggleText = document.getElementById('toggle-text');
-
             if (panel.classList.contains('panel-collapsed')) {
-                // 展開
                 panel.classList.remove('panel-collapsed');
                 toggleText.textContent = '▼ 情報パネルを閉じる';
             } else {
-                // 折りたたみ
                 panel.classList.add('panel-collapsed');
                 toggleText.textContent = '▶ 情報パネルを開く';
             }
         }
 
-        // アプリケーション起動
         document.addEventListener('DOMContentLoaded', () => {
-            new PathfinderMap();
+            window.mapInstance = new PathfinderMap();
         });
     </script>
 </body>
